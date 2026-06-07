@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>恩主公醫院 手術室門禁管理系統</title>
+<meta name="description" content="恩主公醫院手術室門禁管理系統">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+window._fbModules = { initializeApp, getDatabase, ref, set, onValue, off };
+</script>
+<style>
+:root{--navy:#0D1B2A;--navy2:#152231;--navy3:#1C2E42;--steel:#2A3F54;--accent:#00C4B4;--warn:#F59E0B;--danger:#EF4444;--ok:#10B981;--text:#E8EDF2;--text2:#8FA4BA;--text3:#5B7A96;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--card:rgba(255,255,255,0.04);--card2:rgba(255,255,255,0.07);--mono:'IBM Plex Mono',monospace;--sans:'Noto Sans TC',sans-serif;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;}
+body{font-family:var(--sans);background:var(--navy);color:var(--text);min-height:100vh;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:var(--steel);border-radius:3px;}
+.shell{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:210px;flex-shrink:0;background:var(--navy2);border-right:1px solid var(--border);display:flex;flex-direction:column;}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.brand{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.brand-name{font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.05em;}
+.brand-sub{font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--mono);}
+.sync-status{font-size:10px;margin-top:6px;font-family:var(--mono);display:flex;align-items:center;gap:5px;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--text3);}
+.dot.ok{background:var(--ok);}.dot.warn{background:var(--warn);}.dot.err{background:var(--danger);}
+.nav{flex:1;padding:8px 0;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;border-left:2px solid transparent;}
+.nav-item:hover{color:var(--text);background:var(--card);}
+.nav-item.active{color:var(--accent);background:rgba(0,196,180,0.08);border-left-color:var(--accent);}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;}
+.sidebar-bottom{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;}
+.sidebar-bottom button{flex:1;min-width:58px;font-size:11px;padding:5px 4px;background:var(--card);border:1px solid var(--border2);border-radius:5px;color:var(--text2);cursor:pointer;font-family:var(--sans);}
+.sidebar-bottom button:hover{background:var(--card2);color:var(--text);}
+.topbar{height:50px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;flex-shrink:0;background:var(--navy2);}
+.topbar-title{font-size:15px;font-weight:500;}
+.topbar-sub{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.topbar-right{margin-left:auto;font-size:11px;color:var(--text3);font-family:var(--mono);}
+.content{flex:1;overflow-y:auto;padding:20px;}
+.page{display:none;}
+.page.active{display:block;}
+.alert{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:9px 13px;font-size:12px;color:#FCD34D;margin-bottom:14px;display:flex;align-items:flex-start;gap:7px;line-height:1.5;}
+.alert svg{width:13px;height:13px;flex-shrink:0;margin-top:1px;}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.metric{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px 15px;}
+.metric-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;font-family:var(--mono);}
+.metric-val{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1;}
+.metric-sub{font-size:10px;color:var(--text3);margin-top:3px;}
+.c-ok{color:var(--ok);}.c-warn{color:var(--warn);}.c-danger{color:var(--danger);}.c-accent{color:var(--accent);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:15px;margin-bottom:14px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.card-title{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono);}
+.form-row{display:flex;gap:9px;margin-bottom:9px;}
+.field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;}
+.field label{font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;}
+.field input,.field select,.field textarea{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;padding:6px 9px;color:var(--text);font-size:13px;font-family:var(--sans);outline:none;transition:border-color .15s;width:100%;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.field select option{background:var(--navy3);}
+button{font-family:var(--sans);cursor:pointer;border:none;transition:all .15s;}
+.btn{padding:7px 13px;border-radius:6px;font-size:13px;display:inline-flex;align-items:center;gap:5px;}
+.btn-primary{background:var(--accent);color:var(--navy);font-weight:500;}
+.btn-primary:hover{background:#00d9c8;}
+.btn-ghost{background:var(--card);border:1px solid var(--border2);color:var(--text2);}
+.btn-ghost:hover{background:var(--card2);color:var(--text);}
+.btn-sm-danger{background:transparent;border:1px solid rgba(239,68,68,.3);color:#f87171;padding:3px 8px;border-radius:5px;font-size:11px;}
+.btn-sm-danger:hover{background:rgba(239,68,68,.1);}
+.toolbar{display:flex;align-items:center;gap:7px;margin-bottom:12px;flex-wrap:wrap;}
+.toolbar input,.toolbar select{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;padding:6px 9px;color:var(--text);font-size:13px;font-family:var(--sans);outline:none;}
+.toolbar input:focus,.toolbar select:focus{border-color:var(--accent);}
+.toolbar input{width:200px;}
+.toolbar-right{margin-left:auto;font-size:11px;color:var(--text3);font-family:var(--mono);}
+.tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed;}
+thead th{padding:8px 11px;text-align:left;color:var(--text3);font-size:10px;font-weight:500;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--navy3);white-space:nowrap;}
+tbody td{padding:7px 11px;border-bottom:1px solid var(--border);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--card2);}
+/* month section in records */
+.month-section{margin-bottom:20px;}
+.month-header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--navy3);border-radius:8px 8px 0 0;border:1px solid var(--border2);border-bottom:none;cursor:pointer;user-select:none;}
+.month-header-title{font-size:12px;font-weight:500;color:var(--accent);font-family:var(--mono);}
+.month-header-stats{font-size:11px;color:var(--text3);font-family:var(--mono);display:flex;gap:12px;}
+.month-header-arrow{margin-left:auto;font-size:12px;color:var(--text3);transition:transform .2s;}
+.month-header-arrow.open{transform:rotate(90deg);}
+.month-body{border:1px solid var(--border2);border-top:none;border-radius:0 0 8px 8px;overflow:hidden;}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;font-family:var(--mono);}
+.pill-ok{background:rgba(16,185,129,.15);color:#34D399;}
+.pill-no{background:rgba(239,68,68,.15);color:#F87171;}
+.pill-warn{background:rgba(245,158,11,.15);color:#FCD34D;}
+.pill-blue{background:rgba(0,196,180,.12);color:var(--accent);}
+.pill-gray{background:rgba(255,255,255,.07);color:var(--text3);border:1px solid var(--border2);}
+.empty-state{text-align:center;padding:36px;color:var(--text3);font-size:13px;}
+.chart-wrap{position:relative;height:185px;}
+.chart-wrap-lg{position:relative;height:240px;}
+input[type="file"]{display:none;}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:999;}
+.modal-bg.hidden{display:none;}
+.modal{background:var(--navy2);border:1px solid var(--border2);border-radius:12px;padding:24px;width:420px;max-width:95vw;}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:6px;}
+.modal p{font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;}
+/* analysis */
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;}
+.bar-label{width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);flex-shrink:0;}
+.bar-track{flex:1;height:10px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:5px;transition:width .4s;}
+.bar-val{width:38px;text-align:right;font-family:var(--mono);color:var(--text3);}
+.risk-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;}
+.risk-badge{flex-shrink:0;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--mono);}
+.risk-badge.high{background:rgba(239,68,68,.15);color:#F87171;}
+.risk-badge.mid{background:rgba(245,158,11,.15);color:#FCD34D;}
+.risk-badge.low{background:rgba(16,185,129,.15);color:#34D399;}
+.risk-info{flex:1;min-width:0;}
+.risk-name{font-weight:500;font-size:13px;}
+.risk-meta{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px;}
+.risk-vendor{font-size:11px;color:var(--text2);}
+.filter-tabs{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap;}
+.filter-tab{padding:5px 12px;border-radius:6px;font-size:12px;background:var(--card);border:1px solid var(--border2);color:var(--text2);cursor:pointer;font-family:var(--mono);}
+.filter-tab.active{background:rgba(0,196,180,.15);border-color:var(--accent);color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-name">恩主公醫院</div>
+    <div class="brand-sub">OR Access Management v3</div>
+    <div class="sync-status"><div class="dot" id="sync-dot"></div><span id="sync-label">本地模式</span></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="goPage('dashboard',this)" data-page="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>儀表板</div>
+    <div class="nav-item" onclick="goPage('records',this)" data-page="records"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>進場記錄</div>
+    <div class="nav-item" onclick="goPage('vendors',this)" data-page="vendors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>廠商管理</div>
+    <div class="nav-item" onclick="goPage('persons',this)" data-page="persons"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>人員管理</div>
+    <div class="nav-item" onclick="goPage('license',this)" data-page="license"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>證照追蹤</div>
+    <div class="nav-item" onclick="goPage('analysis',this)" data-page="analysis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>分析報表</div>
+  </nav>
+  <div class="sidebar-bottom">
+    <button onclick="showSyncModal()">⚙ 同步</button>
+    <button onclick="exportData()">↓ 匯出</button>
+    <button onclick="document.getElementById('importFile').click()">↑ 匯入</button>
+    <input type="file" id="importFile" accept=".json" onchange="importData(event)">
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div><div class="topbar-title" id="topbar-title">儀表板</div><div class="topbar-sub" id="topbar-sub">總覽</div></div>
+    <div class="topbar-right" id="topbar-right"></div>
+  </div>
+  <div class="content">
+
+    <!-- 儀表板 -->
+    <div id="page-dashboard" class="page active">
+      <div id="dash-alert"></div>
+      <div class="metrics" id="dash-metrics"></div>
+      <div class="grid2">
+        <div class="card"><div class="card-header"><span class="card-title">進場類型比例</span></div><div class="chart-wrap"><canvas id="ch-type" role="img" aria-label="進場類型圓餅圖"></canvas></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">各月持照率</span></div><div class="chart-wrap"><canvas id="ch-lic" role="img" aria-label="各月持照率長條圖"></canvas></div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-header"><span class="card-title">跟刀科別分布</span></div><div class="chart-wrap"><canvas id="ch-dept" role="img" aria-label="跟刀科別圓餅圖"></canvas></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">廠商進場 Top 10</span></div><div id="vendor-top-bars" style="padding-top:4px"></div></div>
+      </div>
+    </div>
+
+    <!-- 進場記錄 -->
+    <div id="page-records" class="page">
+      <div class="card"><div class="card-header"><span class="card-title">新增進場記錄</span></div>
+        <div class="form-row">
+          <div class="field"><label>日期</label><input type="date" id="r-date"></div>
+          <div class="field"><label>進場時間</label><input type="time" id="r-in"></div>
+          <div class="field"><label>離場時間</label><input type="time" id="r-out"></div>
+          <div class="field"><label>進出類型</label><select id="r-type"><option>跟刀手術</option><option>維修保養</option></select></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>廠商</label><select id="r-vendor" onchange="updatePersonSel()"><option value="">-- 選擇廠商 --</option></select></div>
+          <div class="field"><label>人員</label><select id="r-person"><option value="">-- 選擇人員 --</option></select></div>
+          <div class="field"><label>跟刀科別</label><select id="r-dept"><option value="">—</option><option>骨科</option><option>泌尿科</option><option>神經外科</option><option>婦產科</option><option>眼科</option><option>心臟外科</option><option>胸腔外科</option><option>整形外科</option><option>耳鼻喉科</option><option>其他</option></select></div>
+          <div class="field"><label>主刀醫師</label><input type="text" id="r-doctor"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>手術術式</label><input type="text" id="r-surgery"></div>
+          <div class="field"><label>備註</label><input type="text" id="r-note"></div>
+          <div class="field" style="flex:0.35;justify-content:flex-end;padding-top:16px"><button class="btn btn-primary" onclick="addRecord()" style="width:100%">＋ 新增</button></div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input type="text" placeholder="搜尋廠商/人員/術式..." id="rec-search" oninput="renderRecords()">
+        <select id="rec-fm" onchange="renderRecords()" style="width:100px"><option value="">全部月份</option></select>
+        <select id="rec-ft" onchange="renderRecords()"><option value="">全部類型</option><option>跟刀手術</option><option>維修保養</option></select>
+        <select id="rec-fl" onchange="renderRecords()"><option value="">持照全部</option><option value="是">已持照</option><option value="否">未持照</option></select>
+        <div class="toolbar-right" id="rec-count"></div>
+      </div>
+      <div id="rec-months-container"></div>
+    </div>
+
+    <!-- 廠商管理 -->
+    <div id="page-vendors" class="page">
+      <div class="card"><div class="card-header"><span class="card-title">新增廠商</span></div>
+        <div class="form-row">
+          <div class="field"><label>廠商名稱</label><input type="text" id="v-name"></div>
+          <div class="field"><label>廠牌</label><input type="text" id="v-brand"></div>
+          <div class="field"><label>聯絡人</label><input type="text" id="v-contact"></div>
+          <div class="field"><label>電話</label><input type="text" id="v-phone"></div>
+          <div class="field" style="flex:0.35;justify-content:flex-end;padding-top:16px"><button class="btn btn-primary" onclick="addVendor()" style="width:100%">＋ 新增</button></div>
+        </div>
+      </div>
+      <div class="toolbar"><input type="text" placeholder="搜尋廠商..." id="v-search" oninput="renderVendors()"><div class="toolbar-right" id="v-count"></div></div>
+      <div class="tbl-wrap"><table><thead><tr><th style="width:155px">廠商名稱</th><th style="width:95px">廠牌</th><th style="width:82px">聯絡人</th><th style="width:115px">電話</th><th style="width:62px">人員</th><th style="width:62px">進場</th><th style="width:68px">持照率</th><th style="width:52px">操作</th></tr></thead><tbody id="v-body"></tbody></table></div>
+    </div>
+
+    <!-- 人員管理 -->
+    <div id="page-persons" class="page">
+      <div class="card"><div class="card-header"><span class="card-title">新增人員</span></div>
+        <div class="form-row">
+          <div class="field"><label>廠商</label><select id="p-vendor"><option value="">-- 選擇廠商 --</option></select></div>
+          <div class="field"><label>姓名</label><input type="text" id="p-name"></div>
+          <div class="field"><label>電話</label><input type="text" id="p-phone"></div>
+          <div class="field"><label>持有證照</label><select id="p-lic"><option value="否">否</option><option value="是">是</option></select></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>證照卡號</label><input type="text" id="p-licno"></div>
+          <div class="field"><label>證照到期日</label><input type="date" id="p-licexp"></div>
+          <div class="field"><label>備註</label><input type="text" id="p-note"></div>
+          <div class="field" style="flex:0.35;justify-content:flex-end;padding-top:16px"><button class="btn btn-primary" onclick="addPerson()" style="width:100%">＋ 新增</button></div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input type="text" placeholder="搜尋姓名/廠商..." id="p-search" oninput="renderPersons()">
+        <select id="p-fl" onchange="renderPersons()"><option value="">持照全部</option><option value="是">已持照</option><option value="否">未持照</option></select>
+        <div class="toolbar-right" id="p-count"></div>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th style="width:148px">廠商</th><th style="width:78px">姓名</th><th style="width:112px">電話</th><th style="width:62px">持照</th><th style="width:102px">證照卡號</th><th style="width:98px">到期日</th><th style="width:62px">進場次</th><th style="width:52px">操作</th></tr></thead><tbody id="p-body"></tbody></table></div>
+    </div>
+
+    <!-- 證照追蹤 -->
+    <div id="page-license" class="page">
+      <div id="lic-alert"></div>
+      <div class="metrics" id="lic-metrics"></div>
+      <div class="toolbar">
+        <input type="text" placeholder="搜尋姓名/廠商..." id="lf-search" oninput="renderLicense()">
+        <select id="lf-status" onchange="renderLicense()"><option value="">全部狀態</option><option value="expired">已到期</option><option value="soon">30天內到期</option><option value="ok">有效</option><option value="none">未持照</option></select>
+        <div class="toolbar-right" id="lf-count"></div>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th style="width:152px">廠商</th><th style="width:78px">姓名</th><th style="width:62px">持照</th><th style="width:108px">證照卡號</th><th style="width:98px">到期日</th><th style="width:108px">狀態</th><th style="width:62px">進場次</th><th style="width:68px">操作</th></tr></thead><tbody id="lic-body"></tbody></table></div>
+    </div>
+
+    <!-- 分析報表 -->
+    <div id="page-analysis" class="page">
+      <div class="filter-tabs" id="analysis-tabs">
+        <div class="filter-tab active" onclick="switchAnalysis('vendor-lic',this)">廠商持照率</div>
+        <div class="filter-tab" onclick="switchAnalysis('monthly-lic',this)">每月持照趨勢</div>
+        <div class="filter-tab" onclick="switchAnalysis('nolic-detail',this)">未持照人員分析</div>
+        <div class="filter-tab" onclick="switchAnalysis('dept-dist',this)">科別分布</div>
+        <div class="filter-tab" onclick="switchAnalysis('purpose-dist',this)">進場目的分析</div>
+      </div>
+      <div id="analysis-vendor-lic">
+        <div class="metrics" id="an-vendor-metrics"></div>
+        <div class="grid2">
+          <div class="card"><div class="card-header"><span class="card-title">各廠商持照率排名</span></div><div id="vendor-lic-bars"></div></div>
+          <div class="card"><div class="card-header"><span class="card-title">持照 vs 未持照人數</span></div><div class="chart-wrap"><canvas id="ch-vendor-lic" role="img" aria-label="堆疊圖"></canvas></div></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">廠商持照明細</span></div>
+          <div class="tbl-wrap"><table><thead><tr><th style="width:155px">廠商</th><th style="width:62px">人員</th><th style="width:62px">持照</th><th style="width:62px">未持照</th><th style="width:80px">持照率</th><th style="width:68px">進場次</th><th style="width:90px">狀態</th></tr></thead><tbody id="vendor-lic-body"></tbody></table></div>
+        </div>
+      </div>
+      <div id="analysis-monthly-lic" style="display:none">
+        <div class="card"><div class="card-header"><span class="card-title">每月整體持照率趨勢</span></div><div class="chart-wrap-lg"><canvas id="ch-monthly-trend" role="img" aria-label="折線圖"></canvas></div></div>
+        <div class="grid2">
+          <div class="card"><div class="card-header"><span class="card-title">每月進場量</span></div><div class="chart-wrap"><canvas id="ch-monthly-vol" role="img" aria-label="長條圖"></canvas></div></div>
+          <div class="card"><div class="card-header"><span class="card-title">每月未持照筆數</span></div><div class="chart-wrap"><canvas id="ch-monthly-nolic" role="img" aria-label="長條圖"></canvas></div></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">廠商 × 月份持照率矩陣</span></div><div class="tbl-wrap" id="monthly-matrix-wrap"></div></div>
+      </div>
+      <div id="analysis-nolic-detail" style="display:none">
+        <div class="metrics" id="an-nolic-metrics"></div>
+        <div class="grid2">
+          <div class="card"><div class="card-header"><span class="card-title">未持照人員進場次數排行</span></div><div id="nolic-bars"></div></div>
+          <div class="card"><div class="card-header"><span class="card-title">未持照跟刀科別分布</span></div><div class="chart-wrap"><canvas id="ch-nolic-dept" role="img" aria-label="圓餅圖"></canvas></div></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">未持照人員風險清單</span></div><div id="nolic-risk-list"></div></div>
+      </div>
+      <div id="analysis-dept-dist" style="display:none">
+        <div class="grid2">
+          <div class="card"><div class="card-header"><span class="card-title">跟刀科別進場次數</span></div><div class="chart-wrap-lg"><canvas id="ch-dept-bar" role="img" aria-label="橫條圖"></canvas></div></div>
+          <div class="card"><div class="card-header"><span class="card-title">科別持照率</span></div><div id="dept-lic-bars"></div></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">廠商 × 科別進場矩陣</span></div><div class="tbl-wrap" id="dept-vendor-wrap"></div></div>
+      </div>
+
+      <!-- 進場目的分析 -->
+      <div id="analysis-purpose-dist" style="display:none">
+        <div class="metrics" id="an-purpose-metrics"></div>
+        <div class="grid2">
+          <div class="card"><div class="card-header"><span class="card-title">進場目的總覽（所有記錄）</span></div><div class="chart-wrap"><canvas id="ch-purpose-all" role="img" aria-label="進場目的圓餅圖"></canvas></div></div>
+          <div class="card"><div class="card-header"><span class="card-title">跟刀手術科別佔比</span></div><div class="chart-wrap"><canvas id="ch-purpose-op" role="img" aria-label="跟刀科別圓餅圖"></canvas></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="card-header"><span class="card-title">維修保養科別佔比</span></div><div class="chart-wrap"><canvas id="ch-purpose-maint" role="img" aria-label="維修科別圓餅圖"></canvas></div></div>
+          <div class="card"><div class="card-header"><span class="card-title">月份 × 進場目的趨勢</span></div><div class="chart-wrap"><canvas id="ch-purpose-monthly" role="img" aria-label="月份進場目的堆疊圖"></canvas></div></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">進場目的明細表（跟刀科別 × 月份）</span></div>
+          <div class="tbl-wrap" id="purpose-detail-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- Firebase 同步 Modal -->
+<div class="modal-bg hidden" id="sync-modal">
+  <div class="modal">
+    <h3>Firebase 雲端同步設定</h3>
+    <p>填入您的 Firebase 專案設定，所有裝置使用相同設定即可即時同步。<br>
+    設定值請參考教學文件（Firebase Console → 專案設定 → 您的應用程式）。</p>
+    <div class="field" style="margin-bottom:9px"><label>API Key</label><input type="text" id="fb-apikey" placeholder="AIzaSy..."></div>
+    <div class="field" style="margin-bottom:9px"><label>Project ID</label><input type="text" id="fb-projectid" placeholder="my-hospital-or"></div>
+    <div class="field" style="margin-bottom:9px"><label>Database URL</label><input type="text" id="fb-dburl" placeholder="https://my-hospital-or-default-rtdb.firebaseio.com"></div>
+    <div class="field" style="margin-bottom:14px"><label>App ID</label><input type="text" id="fb-appid" placeholder="1:123456789:web:abcdef"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="closeSyncModal()">取消</button>
+      <button class="btn btn-ghost" onclick="fbDisconnect()" id="btn-disconnect" style="display:none">⏏ 斷開連線</button>
+      <button class="btn btn-primary" onclick="fbConnect()" id="btn-connect">🔗 連線並同步</button>
+    </div>
+    <div id="sync-msg" style="margin-top:10px;font-size:12px;color:var(--text2);font-family:var(--mono);line-height:1.6"></div>
+  </div>
+</div>
+
+<script>
+const KEY='or_mgmt_v3';
+let DB={vendors:[],persons:[],records:[]};
+let FB_CONFIG={
+  apiKey:'AIzaSyDCE9tr8L7_JNH0fhYnIbj6ERaFERHY940',
+  projectId:'hospital-or-mgmt',
+  databaseURL:'https://hospital-or-mgmt-default-rtdb.asia-southeast1.firebasedatabase.app',
+  appId:'1:461766372391:web:1f470004f0a31eed4ff202'
+};let fbApp=null,fbDb=null,fbConnected=false;
+let charts={};
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}}
+function load(){try{const d=localStorage.getItem(KEY);if(d)DB=JSON.parse(d);const s=localStorage.getItem(KEY+'_fbcfg');if(s)FB_CONFIG=JSON.parse(s);}catch(e){}}
+function saveSync(){try{localStorage.setItem(KEY+'_fbcfg',JSON.stringify(FB_CONFIG));}catch(e){}}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+load();
+// 首次開啟若 localStorage 無資料，載入真實資料
+if(!DB.vendors.length){
+  DB={"vendors":[{"id":"b57bc4d7ff73","name":"悠植生技","brand":"育禾","contact":"黃瑞玲","phone":"988810651"},{"id":"63a83504643a","name":"聖宏醫療器材","brand":"Smith&nephew","contact":"莊博丞","phone":"939681143"},{"id":"6de88efc24ec","name":"A+","brand":"A+","contact":"莊裕佳","phone":"925592220"},{"id":"a0c7a4affdee","name":"寶健科技","brand":"OTU","contact":"林志謙","phone":"989337981"},{"id":"8ba33fdc8eb7","name":"捷強生技","brand":"Aplus","contact":"黃得瑋","phone":"938510687"},{"id":"2811885b4f6a","name":"稚庭","brand":"麗莎","contact":"李奕模","phone":"970618954"},{"id":"ba5ed8f32195","name":"博而美國際","brand":"Codnam","contact":"李品于","phone":"960548117"},{"id":"deef13128d15","name":"康成生醫","brand":"宏濟","contact":"陳品良","phone":"981721800"},{"id":"3c00747e49f6","name":"Chm","brand":"增元","contact":"陳柏諭","phone":"905692328"},{"id":"bac6ac0b1634","name":"昌偉企業","brand":"Oligo","contact":"魏常祐","phone":"931349988"},{"id":"7f21c1101051","name":"台灣捷邁","brand":"Zimmer","contact":"羊宣百","phone":"937051710"},{"id":"b4ecaccd521f","name":"裕合","brand":"Stryker","contact":"黃正中","phone":"910275986"},{"id":"b6ab4e43f34a","name":"錫寶","brand":"Maxmore","contact":"蕭景鴻","phone":"988891197"},{"id":"2bbaca432a54","name":"兆益","brand":"兆益","contact":"鄒致遠","phone":"975669775"},{"id":"655bd0eb67c0","name":"Zimmer","brand":"ZIMMER","contact":"江智銘","phone":"907082096"},{"id":"4febb5101a6d","name":"御勛","brand":"御勛","contact":"邱泓達","phone":"912007952"},{"id":"e16ce10d7d55","name":"吉時洋行","brand":"Neolase","contact":"蔡川平","phone":"972791516"},{"id":"2995bf95d12f","name":"聯友泰","brand":"以諾康","contact":"黃郁婷","phone":"975076187"},{"id":"7e1cc497a560","name":"理略生物科技","brand":"美敦力","contact":"范翠芸","phone":"960776306"},{"id":"ffa73d53ad33","name":"信邦","brand":"信邦","contact":"賴睿淇","phone":"935551727"},{"id":"0cf28e366448","name":"JS","brand":"Depuy","contact":"周家維","phone":"970464552"},{"id":"99c2d4e26f5f","name":"健伸","brand":"JJ","contact":"劉又嘉","phone":"972859610"},{"id":"f9523825b1b0","name":"麥迪斯","brand":"AO","contact":"陳柏宏","phone":"912229335"},{"id":"a08ad6a2999d","name":"互裕","brand":"Stryker","contact":"黃正中","phone":"910275986"},{"id":"846c5bc2f732","name":"增元","brand":"CHM","contact":"陳柏璁","phone":"926354722"},{"id":"f08d5296a3f8","name":"鼎正公司","brand":"嬌生","contact":"徐鼎淏","phone":"982333072"},{"id":"6722c6096b64","name":"唯特","brand":"Conmed","contact":"王炯勻","phone":"905762621"},{"id":"bbb4b6c6f12a","name":"田忠穎","brand":"SN","contact":"田忠穎","phone":"939579666"},{"id":"02fed8a0e4c6","name":"韶田","brand":"韶田","contact":"李佩諭","phone":"970030783"},{"id":"d4de0a6b8cd9","name":"直覺","brand":"直覺","contact":"王文原","phone":"975011963"},{"id":"3c6bfe27c0cc","name":"信實","brand":"百優可吸收釘","contact":"詹益澄","phone":"920298216"},{"id":"959d67478208","name":"唯特生技","brand":"Conmed","contact":"王炯勻","phone":"905762621"},{"id":"2122f33f9eee","name":"華太醫療","brand":"Sn","contact":"陳靖凱","phone":"976168987"},{"id":"5ec0e0d1211e","name":"普旌","brand":"B.Braun","contact":"蘇宣予","phone":"928521202"},{"id":"f9836fb64d4c","name":"崴康實業","brand":"Conmed","contact":"陳昱勳","phone":"920005041"},{"id":"61f7d7543bc3","name":"博暘科技","brand":"Adeor","contact":"詹凱伃","phone":"962009545"},{"id":"61bb90453b8b","name":"久和醫療儀器","brand":"Leica","contact":"朱哲宏","phone":"919312727"},{"id":"4fc3bbf1820a","name":"日龍儀器","brand":"美敦力","contact":"張承泰","phone":"978660568"},{"id":"7c0c74097a7e","name":"廣碩","brand":"Vela","contact":"陳麒升","phone":"8925700089"},{"id":"8af37017ef97","name":"澤昌生技","brand":"派瑞德","contact":"羅桂晴","phone":"932814588"},{"id":"65f3beed6eab","name":"維克斯","brand":"Nuvasive","contact":"馮冠勳","phone":"928727164"},{"id":"fe9dd369d675","name":"東瀚","brand":"狼和","contact":"張晉嘉","phone":"936874116"},{"id":"b5eba6c2a868","name":"台灣曲克","brand":"Cook","contact":"呂姝嫻","phone":"952030198"},{"id":"d1a97d62fbdb","name":"艾羅得","brand":"聯合","contact":"楊鎧瑞","phone":"919939740"},{"id":"21b5b6dc74c1","name":"品正","brand":"Arthrex","contact":"范書瑋","phone":"911573555"},{"id":"2d4b566ba385","name":"奧澄","brand":"奧澄","contact":"孫聰育","phone":"960769729"},{"id":"ca2e88ff5ff6","name":"友信行","brand":"Ziehm","contact":"林禹勳","phone":"919074110"},{"id":"77cb4fc13e2b","name":"炳碩生醫","brand":"炳碩","contact":"劉俊宏","phone":"988143704"},{"id":"899cc09c1006","name":"群一創新","brand":"insorb","contact":"宋修潔","phone":"971009022"},{"id":"440fa1e5da0a","name":"匯立醫療器材","brand":"Allium","contact":"吳淵杰","phone":"937841039"},{"id":"188dfb836762","name":"安頡","brand":"美敦力","contact":"呂采晴","phone":"975060083"},{"id":"136e2e9f1b6c","name":"愛派司生技","brand":"愛派司","contact":"葉柏伸","phone":"981355598"},{"id":"d43ebec5e2bd","name":"凱寶","brand":"Gezen","contact":"劉奕德","phone":"921539981"},{"id":"e96586bdbaa2","name":"達勝","brand":"Applied","contact":"汪智銘","phone":"988026410"},{"id":"bbeda578a846","name":"凱寶生技","brand":"際仁","contact":"江博均","phone":"911556230"},{"id":"f2b75bd86c87","name":"邁偉","brand":"Amniotic","contact":"廖蕙文","phone":"979577713"},{"id":"d2ff34f7e70d","name":"科明儀器","brand":"Z8","contact":"黃秋梅","phone":"965620286"},{"id":"f5da50ca8368","name":"Teleflex","brand":"Urolift","contact":"翁郁翔","phone":"921573868"},{"id":"ef963ba93f31","name":"力霸","brand":"力霸","contact":"許家豪","phone":"935214102"},{"id":"1c83e62101b9","name":"健佳生技","brand":"壯生","contact":"姜惠娟","phone":"903092708"},{"id":"365319adea3e","name":"侑宏","brand":"OSMD","contact":"林修平","phone":"963486958"},{"id":"f954a35cc59c","name":"啓動力","brand":"Zsr","contact":"鍾宜安","phone":"921135789"},{"id":"716c65336fb6","name":"冠亞生技","brand":"Aspine","contact":"王皓宇","phone":"911280420"},{"id":"8e2644e45a8a","name":"GE","brand":"GE","contact":"陳岳廷","phone":"905678633"},{"id":"2c2bace49b5d","name":"博得瑞恩","brand":"Amniolink","contact":"董宜姍","phone":"965819321"},{"id":"1b4b032a6e3e","name":"世鵬","brand":"Zimmer","contact":"簡民政","phone":"975225012"},{"id":"83416da8d228","name":"鼎太","brand":"Zimmer","contact":"劉德懋","phone":"635207276"},{"id":"5b8a434e5a23","name":"美敦力","brand":"美敦力","contact":"林亞錡","phone":"982213083"},{"id":"57f4cbb05088","name":"顥騰","brand":"Seegen","contact":"陳國榮","phone":"925163997"},{"id":"81799b5fc3b4","name":"安美得","brand":"Polysite","contact":"莊爵維","phone":"98868909"},{"id":"65751aaaf596","name":"台灣達孚","brand":"ETHICON","contact":"呂艾蓁","phone":"926475017"},{"id":"44d30e6e558b","name":"捷森","brand":"A+","contact":"翁子楊","phone":"988969169"}],"persons":[{"id":"fb54e1f5e82c","vendorId":"b57bc4d7ff73","name":"黃瑞玲","phone":"988810651","hasLic":"是","licNo":"688","licExp":"","note":""},{"id":"feda0b4d1b25","vendorId":"63a83504643a","name":"莊博丞","phone":"939681143","hasLic":"是","licNo":"3388","licExp":"","note":""},{"id":"7a7ff6f6a965","vendorId":"6de88efc24ec","name":"莊裕佳","phone":"925592220","hasLic":"是","licNo":"1951","licExp":"","note":""},{"id":"23f69d1d8f0b","vendorId":"a0c7a4affdee","name":"林志謙","phone":"989337981","hasLic":"是","licNo":"3236","licExp":"","note":""},{"id":"887e85a9387a","vendorId":"8ba33fdc8eb7","name":"黃得瑋","phone":"938510687","hasLic":"是","licNo":"5245","licExp":"","note":""},{"id":"67d8b5651aa1","vendorId":"2811885b4f6a","name":"李奕模","phone":"970618954","hasLic":"是","licNo":"1206","licExp":"","note":""},{"id":"b562853c7e73","vendorId":"ba5ed8f32195","name":"李品于","phone":"960548117","hasLic":"是","licNo":"4522","licExp":"","note":""},{"id":"11f70a44ee5b","vendorId":"63a83504643a","name":"田忠穎","phone":"939579666","hasLic":"是","licNo":"2562","licExp":"","note":""},{"id":"1aadd7a4ba6f","vendorId":"deef13128d15","name":"陳品良","phone":"981721800","hasLic":"是","licNo":"5219","licExp":"","note":""},{"id":"64ebc6ea158c","vendorId":"3c00747e49f6","name":"陳柏諭","phone":"905692328","hasLic":"是","licNo":"4466","licExp":"","note":""},{"id":"7212e8de30dc","vendorId":"bac6ac0b1634","name":"魏常祐","phone":"931349988","hasLic":"是","licNo":"4035","licExp":"","note":""},{"id":"352b9b9cfc1e","vendorId":"7f21c1101051","name":"羊宣百","phone":"937051710","hasLic":"是","licNo":"371","licExp":"","note":""},{"id":"ef129fdbc1af","vendorId":"b4ecaccd521f","name":"黃正中","phone":"910275986","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"cdee8f7e5338","vendorId":"b6ab4e43f34a","name":"蕭景鴻","phone":"988891197","hasLic":"是","licNo":"4101","licExp":"","note":""},{"id":"db9762816e2c","vendorId":"2bbaca432a54","name":"鄒致遠","phone":"975669775","hasLic":"是","licNo":"1655","licExp":"","note":""},{"id":"763c90067659","vendorId":"2811885b4f6a","name":"余陳鈞","phone":"968111710","hasLic":"是","licNo":"4565","licExp":"","note":""},{"id":"2dce149dd51d","vendorId":"655bd0eb67c0","name":"江智銘","phone":"907082096","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"bdb3e16de4b2","vendorId":"655bd0eb67c0","name":"林威育","phone":"928035550","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"dd968387ffbf","vendorId":"4febb5101a6d","name":"邱泓達","phone":"912007952","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"51cbb823d310","vendorId":"6de88efc24ec","name":"向浩灃","phone":"961151499","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"b20dfc3200b3","vendorId":"e16ce10d7d55","name":"蔡川平","phone":"972791516","hasLic":"是","licNo":"5325","licExp":"","note":""},{"id":"d472f5001ebf","vendorId":"e16ce10d7d55","name":"林梁文蕙","phone":"987560985","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"e409c3c6164e","vendorId":"1b4b032a6e3e","name":"陳翊瑞","phone":"975503628","hasLic":"是","licNo":"4503","licExp":"","note":""},{"id":"f34f719ff715","vendorId":"2995bf95d12f","name":"黃郁婷","phone":"975076187","hasLic":"是","licNo":"2832","licExp":"","note":""},{"id":"c2417022fa4e","vendorId":"1b4b032a6e3e","name":"簡民政","phone":"975225012","hasLic":"是","licNo":"4483","licExp":"","note":""},{"id":"c1f41b15921f","vendorId":"7e1cc497a560","name":"范翠芸","phone":"960776306","hasLic":"是","licNo":"1303","licExp":"","note":""},{"id":"e365e4a3d70e","vendorId":"ffa73d53ad33","name":"賴睿淇","phone":"935551727","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"c7cb03d96233","vendorId":"ffa73d53ad33","name":"史沐汯","phone":"986804625","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"e64b4f7e1693","vendorId":"ffa73d53ad33","name":"林姿儀","phone":"928999766","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"f39d6500d203","vendorId":"7e1cc497a560","name":"林世隆","phone":"912000838","hasLic":"是","licNo":"2018","licExp":"","note":""},{"id":"7d95b379cb47","vendorId":"0cf28e366448","name":"周家維","phone":"970464552","hasLic":"是","licNo":"48672","licExp":"","note":""},{"id":"57af2e01ea5a","vendorId":"99c2d4e26f5f","name":"劉又嘉","phone":"972859610","hasLic":"是","licNo":"40735","licExp":"","note":""},{"id":"20eba908958f","vendorId":"f9523825b1b0","name":"陳柏宏","phone":"912229335","hasLic":"是","licNo":"2112","licExp":"","note":""},{"id":"243c781afd1a","vendorId":"a08ad6a2999d","name":"黃正中","phone":"910275986","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"caf804fd6718","vendorId":"846c5bc2f732","name":"陳柏璁","phone":"926354722","hasLic":"是","licNo":"4440","licExp":"","note":""},{"id":"0274a1b31873","vendorId":"f08d5296a3f8","name":"徐鼎淏","phone":"982333072","hasLic":"是","licNo":"4657","licExp":"","note":""},{"id":"34b16e496dac","vendorId":"6722c6096b64","name":"王炯勻","phone":"905762621","hasLic":"是","licNo":"4112","licExp":"","note":""},{"id":"a830727c0698","vendorId":"bbb4b6c6f12a","name":"田忠穎","phone":"939579666","hasLic":"是","licNo":"2562","licExp":"","note":""},{"id":"994a398299b6","vendorId":"02fed8a0e4c6","name":"李佩諭","phone":"970030783","hasLic":"是","licNo":"2","licExp":"","note":""},{"id":"213c7879e693","vendorId":"d4de0a6b8cd9","name":"王文原","phone":"975011963","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"11d28283b603","vendorId":"d4de0a6b8cd9","name":"熊懷德","phone":"912820112","hasLic":"是","licNo":"5489","licExp":"","note":""},{"id":"8cd51692c9e5","vendorId":"3c00747e49f6","name":"孫有澤","phone":"970067573","hasLic":"是","licNo":"3053","licExp":"","note":""},{"id":"ad44e0eaf877","vendorId":"99c2d4e26f5f","name":"周家維","phone":"970464552","hasLic":"是","licNo":"3690","licExp":"","note":""},{"id":"d3124e4df8be","vendorId":"846c5bc2f732","name":"陳靖峰","phone":"976041677","hasLic":"是","licNo":"3323","licExp":"","note":""},{"id":"e0d27a00c379","vendorId":"3c6bfe27c0cc","name":"詹益澄","phone":"920298216","hasLic":"是","licNo":"5032","licExp":"","note":""},{"id":"a5cc425d7d98","vendorId":"959d67478208","name":"王炯勻","phone":"905762621","hasLic":"是","licNo":"4112","licExp":"","note":""},{"id":"0f1512f6e27d","vendorId":"2122f33f9eee","name":"陳靖凱","phone":"976168987","hasLic":"是","licNo":"5304","licExp":"","note":""},{"id":"6c34c0776dac","vendorId":"5ec0e0d1211e","name":"蘇宣予","phone":"928521202","hasLic":"是","licNo":"3190","licExp":"","note":""},{"id":"5b39f66ec4f0","vendorId":"f9836fb64d4c","name":"陳昱勳","phone":"920005041","hasLic":"是","licNo":"5456","licExp":"","note":""},{"id":"c362167380b2","vendorId":"deef13128d15","name":"廖秉揚","phone":"912373804","hasLic":"是","licNo":"4420","licExp":"","note":""},{"id":"6ba47d10905d","vendorId":"61f7d7543bc3","name":"詹凱伃","phone":"962009545","hasLic":"是","licNo":"3664","licExp":"","note":""},{"id":"73a1ae2dd502","vendorId":"61f7d7543bc3","name":"貝家宇","phone":"905235798","hasLic":"是","licNo":"3665","licExp":"","note":""},{"id":"520b2dbdab6a","vendorId":"61bb90453b8b","name":"朱哲宏","phone":"919312727","hasLic":"是","licNo":"0","licExp":"","note":""},{"id":"8b2d07cd1ad7","vendorId":"4fc3bbf1820a","name":"張承泰","phone":"978660568","hasLic":"是","licNo":"4386","licExp":"","note":""},{"id":"74b7fdb620ef","vendorId":"7c0c74097a7e","name":"陳麒升","phone":"8925700089","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"d402a6f70449","vendorId":"deef13128d15","name":"孫靖博","phone":"928526979","hasLic":"是","licNo":"3153","licExp":"","note":""},{"id":"5ce6bddd034d","vendorId":"8af37017ef97","name":"羅桂晴","phone":"932814588","hasLic":"是","licNo":"6508","licExp":"","note":""},{"id":"313ed9a93352","vendorId":"8af37017ef97","name":"王皓宇","phone":"911280420","hasLic":"是","licNo":"4735","licExp":"","note":""},{"id":"8742f4bbeaa7","vendorId":"846c5bc2f732","name":"汪凱祥","phone":"937821834","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"ebc5d33cb19d","vendorId":"65f3beed6eab","name":"馮冠勳","phone":"928727164","hasLic":"是","licNo":"6728","licExp":"","note":""},{"id":"e280c25e29e0","vendorId":"99c2d4e26f5f","name":"家維","phone":"970464552","hasLic":"是","licNo":"3690","licExp":"","note":""},{"id":"13dd365920c4","vendorId":"02fed8a0e4c6","name":"林俊逸","phone":"981917223","hasLic":"是","licNo":"1","licExp":"","note":""},{"id":"4c3a1f6df9f3","vendorId":"fe9dd369d675","name":"張晉嘉","phone":"936874116","hasLic":"是","licNo":"5142","licExp":"","note":""},{"id":"a97ef242c5e9","vendorId":"b5eba6c2a868","name":"呂姝嫻","phone":"952030198","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"cf41f98714e8","vendorId":"846c5bc2f732","name":"陳宇宏","phone":"912151102","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"5092ef3aa0b3","vendorId":"846c5bc2f732","name":"陳柏諭","phone":"905692328","hasLic":"是","licNo":"4466","licExp":"","note":""},{"id":"0b84a3456ed3","vendorId":"b57bc4d7ff73","name":"茹慧","phone":"911912890","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"de8fdb65f807","vendorId":"d1a97d62fbdb","name":"楊鎧瑞","phone":"919939740","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"0453c82734cd","vendorId":"21b5b6dc74c1","name":"范書瑋","phone":"911573555","hasLic":"是","licNo":"2966","licExp":"","note":""},{"id":"8d87fa431782","vendorId":"ffa73d53ad33","name":"李凡杰","phone":"921151097","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"0f8ba63a593b","vendorId":"2122f33f9eee","name":"王仁甫","phone":"976350831","hasLic":"是","licNo":"3542","licExp":"","note":""},{"id":"8618f7745027","vendorId":"2d4b566ba385","name":"孫聰育","phone":"960769729","hasLic":"是","licNo":"2713","licExp":"","note":""},{"id":"4e3d0a20f55b","vendorId":"846c5bc2f732","name":"張富誠","phone":"910135769","hasLic":"是","licNo":"2711","licExp":"","note":""},{"id":"f578ef156181","vendorId":"a0c7a4affdee","name":"劉孟宏","phone":"972738713","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"5ba6c60e439f","vendorId":"4febb5101a6d","name":"泓達","phone":"912007952","hasLic":"是","licNo":"6242","licExp":"","note":""},{"id":"c73be6d227db","vendorId":"ca2e88ff5ff6","name":"林禹勳","phone":"919074110","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"0436875e0a3f","vendorId":"77cb4fc13e2b","name":"劉俊宏","phone":"988143704","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"d2e5bf41ff13","vendorId":"77cb4fc13e2b","name":"陳柏翰","phone":"939866373","hasLic":"是","licNo":"4595","licExp":"","note":""},{"id":"3053558e2501","vendorId":"899cc09c1006","name":"宋修潔","phone":"971009022","hasLic":"是","licNo":"3415","licExp":"","note":""},{"id":"c96a07015bea","vendorId":"440fa1e5da0a","name":"吳淵杰","phone":"937841039","hasLic":"是","licNo":"5548","licExp":"","note":""},{"id":"83798f22ef88","vendorId":"188dfb836762","name":"呂采晴","phone":"975060083","hasLic":"是","licNo":"7","licExp":"","note":""},{"id":"b2455fa707f0","vendorId":"136e2e9f1b6c","name":"葉柏伸","phone":"981355598","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"2dd39e4da734","vendorId":"f9523825b1b0","name":"李慶偉","phone":"975691061","hasLic":"是","licNo":"2110","licExp":"","note":""},{"id":"6c1a78a5f7d7","vendorId":"655bd0eb67c0","name":"吳奐誼","phone":"939193277","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"772ed9051fd2","vendorId":"655bd0eb67c0","name":"何承錚","phone":"980017426","hasLic":"是","licNo":"3259","licExp":"","note":""},{"id":"7289fb4450ee","vendorId":"d43ebec5e2bd","name":"劉奕德","phone":"921539981","hasLic":"是","licNo":"4118","licExp":"","note":""},{"id":"1ca2a6a35666","vendorId":"e96586bdbaa2","name":"汪智銘","phone":"988026410","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"5aba615175ee","vendorId":"d43ebec5e2bd","name":"江博均","phone":"911556230","hasLic":"是","licNo":"3378","licExp":"","note":""},{"id":"fa3eb885cbbc","vendorId":"bbeda578a846","name":"江博均","phone":"911556230","hasLic":"是","licNo":"3378","licExp":"","note":""},{"id":"a238af6beac1","vendorId":"f2b75bd86c87","name":"廖蕙文","phone":"979577713","hasLic":"是","licNo":"1498","licExp":"","note":""},{"id":"eb9824b0b494","vendorId":"d2ff34f7e70d","name":"黃秋梅","phone":"965620286","hasLic":"是","licNo":"3035","licExp":"","note":""},{"id":"0ed2f0bf663d","vendorId":"d2ff34f7e70d","name":"蔡環宇","phone":"979575719","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"68384fc4179a","vendorId":"136e2e9f1b6c","name":"李建廣","phone":"975229609","hasLic":"是","licNo":"88403","licExp":"","note":""},{"id":"1b2a32277a25","vendorId":"5ec0e0d1211e","name":"高銘德","phone":"937878515","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"bdb967f40274","vendorId":"f5da50ca8368","name":"翁郁翔","phone":"921573868","hasLic":"是","licNo":"2170","licExp":"","note":""},{"id":"20e29b1853ed","vendorId":"e16ce10d7d55","name":"蔡川平","phone":"972791516","hasLic":"是","licNo":"5325","licExp":"","note":""},{"id":"afae3c16b42f","vendorId":"2811885b4f6a","name":"孫華楷","phone":"939820522","hasLic":"是","licNo":"5","licExp":"","note":""},{"id":"8df5faee93fc","vendorId":"ef963ba93f31","name":"許家豪","phone":"935214102","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"6f1d3fce5027","vendorId":"6de88efc24ec","name":"李建廣","phone":"97522906","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"065752ce56e3","vendorId":"1c83e62101b9","name":"姜惠娟","phone":"903092708","hasLic":"是","licNo":"5214","licExp":"","note":""},{"id":"bd9c2984ead5","vendorId":"1c83e62101b9","name":"蔡姿勤","phone":"934017069","hasLic":"是","licNo":"5213","licExp":"","note":""},{"id":"28abdb04cf16","vendorId":"365319adea3e","name":"林修平","phone":"963486958","hasLic":"是","licNo":"3226","licExp":"","note":""},{"id":"48575459a0ee","vendorId":"f954a35cc59c","name":"鍾宜安","phone":"921135789","hasLic":"是","licNo":"5100","licExp":"","note":""},{"id":"4bd221c7a90d","vendorId":"716c65336fb6","name":"王皓宇","phone":"911280420","hasLic":"是","licNo":"4735","licExp":"","note":""},{"id":"2239d362aea9","vendorId":"8e2644e45a8a","name":"陳岳廷","phone":"905678633","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"ea40400207ed","vendorId":"655bd0eb67c0","name":"張暉岳","phone":"988598979","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"8db7575ed6fc","vendorId":"2c2bace49b5d","name":"董宜姍","phone":"965819321","hasLic":"是","licNo":"3679","licExp":"","note":""},{"id":"d229c115ae35","vendorId":"63a83504643a","name":"王仁甫","phone":"976350831","hasLic":"是","licNo":"3542","licExp":"","note":""},{"id":"678c28235c4d","vendorId":"fe9dd369d675","name":"孫鴻文","phone":"958204286","hasLic":"是","licNo":"2715","licExp":"","note":""},{"id":"583e0694e3f0","vendorId":"63a83504643a","name":"蔡詩軒","phone":"960582435","hasLic":"是","licNo":"3543","licExp":"","note":""},{"id":"72941de6127b","vendorId":"1b4b032a6e3e","name":"簡民政","phone":"975225012","hasLic":"是","licNo":"4483","licExp":"","note":""},{"id":"1c12defaefb7","vendorId":"846c5bc2f732","name":"廖書馳","phone":"935933716","hasLic":"是","licNo":"1829","licExp":"","note":""},{"id":"5d48e5b78537","vendorId":"83416da8d228","name":"劉德懋","phone":"635207276","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"08bf57e905be","vendorId":"4fc3bbf1820a","name":"許巧奕","phone":"905234023","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"ed69c17358b2","vendorId":"4fc3bbf1820a","name":"王力鞍","phone":"931945549","hasLic":"是","licNo":"5177","licExp":"","note":""},{"id":"1ab052b58011","vendorId":"5b8a434e5a23","name":"林亞錡","phone":"982213083","hasLic":"是","licNo":"5181","licExp":"","note":""},{"id":"e2d2b175fc3a","vendorId":"57f4cbb05088","name":"陳國榮","phone":"925163997","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"790663df349c","vendorId":"57f4cbb05088","name":"孫華楷","phone":"939820522","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"5e54ab417a75","vendorId":"3c00747e49f6","name":"陳柏璁","phone":"926354722","hasLic":"是","licNo":"1","licExp":"","note":""},{"id":"7723a2a9cb68","vendorId":"899cc09c1006","name":"施柏丞","phone":"986808573","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"1c5aca38f807","vendorId":"899cc09c1006","name":"宋修德","phone":"971712009","hasLic":"是","licNo":"578","licExp":"","note":""},{"id":"3275cbead9da","vendorId":"81799b5fc3b4","name":"莊爵維","phone":"98868909","hasLic":"是","licNo":"4987","licExp":"","note":""},{"id":"6d3112e708ff","vendorId":"81799b5fc3b4","name":"許麗芬","phone":"931863344","hasLic":"是","licNo":"4834","licExp":"","note":""},{"id":"51a43ba8e64f","vendorId":"02fed8a0e4c6","name":"蘇明偉","phone":"912506391","hasLic":"是","licNo":"4268","licExp":"","note":""},{"id":"b84026970bb4","vendorId":"d4de0a6b8cd9","name":"陶子安","phone":"968020290","hasLic":"是","licNo":"4129","licExp":"","note":""},{"id":"335d35d59579","vendorId":"ffa73d53ad33","name":"余明軒","phone":"975763753","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"592f347be96b","vendorId":"65751aaaf596","name":"呂艾蓁","phone":"926475017","hasLic":"是","licNo":"1315","licExp":"","note":""},{"id":"648ae64c46bf","vendorId":"d2ff34f7e70d","name":"朱憶銘","phone":"915323976","hasLic":"是","licNo":"4430","licExp":"","note":""},{"id":"fe9eecbc86b1","vendorId":"d2ff34f7e70d","name":"張毓心","phone":"8919623018","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"b5323f6c200f","vendorId":"b6ab4e43f34a","name":"吳佩甄","phone":"955124113","hasLic":"否","licNo":"","licExp":"","note":""},{"id":"c8c46283c77c","vendorId":"440fa1e5da0a","name":"洪錦璿","phone":"937883664","hasLic":"是","licNo":"2830","licExp":"","note":""},{"id":"cae1d006866d","vendorId":"1b4b032a6e3e","name":"何拓源","phone":"976001472","hasLic":"是","licNo":"2393","licExp":"","note":""},{"id":"0456a2e9621d","vendorId":"44d30e6e558b","name":"翁子楊","phone":"988969169","hasLic":"否","licNo":"","licExp":"","note":""}],"records":[{"id":"49730e691ff6","date":"2026-04-30","timeIn":"14:25","timeOut":"15:09","type":"跟刀手術","vendorId":"b57bc4d7ff73","personId":"fb54e1f5e82c","dept":"泌尿科","doctor":"陳柏誠","surgery":"菜花","note":"","hasLic":"否"},{"id":"7acfbb7d737e","date":"2026-04-30","timeIn":"12:44","timeOut":"15:16","type":"跟刀手術","vendorId":"63a83504643a","personId":"feda0b4d1b25","dept":"骨科","doctor":"施胤全","surgery":"ACLR","note":"","hasLic":"是"},{"id":"c329f6807094","date":"2026-04-30","timeIn":"11:45","timeOut":"15:04","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"2a034a4a241f","date":"2026-04-30","timeIn":"10:57","timeOut":"14:20","type":"跟刀手術","vendorId":"a0c7a4affdee","personId":"23f69d1d8f0b","dept":"泌尿科","doctor":"莊德彥","surgery":"RIRS","note":"","hasLic":"是"},{"id":"ab29e8c4711d","date":"2026-04-30","timeIn":"10:34","timeOut":"11:44","type":"跟刀手術","vendorId":"8ba33fdc8eb7","personId":"887e85a9387a","dept":"骨科","doctor":"賴昆鴻","surgery":"Orif","note":"","hasLic":"否"},{"id":"3079d46fa729","date":"2026-04-30","timeIn":"10:32","timeOut":"11:44","type":"跟刀手術","vendorId":"8ba33fdc8eb7","personId":"887e85a9387a","dept":"骨科","doctor":"賴昆鴻","surgery":"Orif","note":"","hasLic":"否"},{"id":"8d05442246f5","date":"2026-04-30","timeIn":"10:21","timeOut":"10:55","type":"維修保養","vendorId":"2811885b4f6a","personId":"67d8b5651aa1","dept":"泌尿科","doctor":"","surgery":"","note":"Sphinx","hasLic":"是"},{"id":"097b5268ef28","date":"2026-04-30","timeIn":"09:51","timeOut":"12:11","type":"跟刀手術","vendorId":"ba5ed8f32195","personId":"b562853c7e73","dept":"神經外科","doctor":"李弘裕","surgery":"Vp shunt","note":"","hasLic":"是"},{"id":"745f31486833","date":"2026-04-30","timeIn":"08:25","timeOut":"09:47","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"許立和","surgery":"Meniscus","note":"","hasLic":"是"},{"id":"03df0861d663","date":"2026-04-30","timeIn":"08:05","timeOut":"13:47","type":"跟刀手術","vendorId":"deef13128d15","personId":"1aadd7a4ba6f","dept":"泌尿科","doctor":"陳柏誠","surgery":"Rirs","note":"","hasLic":"是"},{"id":"dfe75aaf27b0","date":"2026-04-29","timeIn":"21:11","timeOut":"22:24","type":"跟刀手術","vendorId":"3c00747e49f6","personId":"64ebc6ea158c","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"6ea28f48814c","date":"2026-04-29","timeIn":"15:29","timeOut":"17:43","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"1e277623426c","date":"2026-04-29","timeIn":"14:30","timeOut":"16:53","type":"跟刀手術","vendorId":"bac6ac0b1634","personId":"7212e8de30dc","dept":"骨科","doctor":"林冠宇","surgery":"Arthroscopy","note":"","hasLic":"是"},{"id":"6a6718c74c62","date":"2026-04-29","timeIn":"13:10","timeOut":"15:18","type":"跟刀手術","vendorId":"7f21c1101051","personId":"352b9b9cfc1e","dept":"骨科","doctor":"賴昆鴻","surgery":"Bipolar","note":"","hasLic":"是"},{"id":"e829f6b6ef9f","date":"2026-04-29","timeIn":"13:10","timeOut":"16:51","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"吳長晉","surgery":"Patella release","note":"","hasLic":"是"},{"id":"145c5989c49f","date":"2026-04-29","timeIn":"10:24","timeOut":"18:00","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"TKR","note":"","hasLic":"否"},{"id":"9586d49daa20","date":"2026-04-29","timeIn":"09:38","timeOut":"13:09","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"姜志勇","surgery":"Peid","note":"","hasLic":"是"},{"id":"0bc40884bcc4","date":"2026-04-29","timeIn":"08:38","timeOut":"09:25","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"姜志勇","surgery":"ORIF","note":"","hasLic":"是"},{"id":"cfe550dd0e75","date":"2026-04-29","timeIn":"09:17","timeOut":"13:04","type":"跟刀手術","vendorId":"2bbaca432a54","personId":"db9762816e2c","dept":"骨科","doctor":"姜志勇","surgery":"PELD","note":"","hasLic":"是"},{"id":"25933f19ebb4","date":"2026-04-29","timeIn":"08:29","timeOut":"08:50","type":"跟刀手術","vendorId":"2811885b4f6a","personId":"763c90067659","dept":"泌尿科","doctor":"王炯程","surgery":"BPH","note":"","hasLic":"是"},{"id":"e74832ef3096","date":"2026-04-28","timeIn":"13:39","timeOut":"14:53","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"2dce149dd51d","dept":"骨科","doctor":"許立禾","surgery":"THR","note":"","hasLic":"否"},{"id":"063e103e3e5a","date":"2026-04-28","timeIn":"13:05","timeOut":"15:10","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"bdb3e16de4b2","dept":"骨科","doctor":"許立和","surgery":"THR","note":"","hasLic":"否"},{"id":"bdad7fb42b8e","date":"2026-04-28","timeIn":"12:28","timeOut":"14:04","type":"跟刀手術","vendorId":"4febb5101a6d","personId":"dd968387ffbf","dept":"骨科","doctor":"許立和","surgery":"L-spine","note":"","hasLic":"否"},{"id":"da72165882bf","date":"2026-04-28","timeIn":"08:12","timeOut":"10:35","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"施胤全","surgery":"RCT","note":"","hasLic":"是"},{"id":"56adae0688c5","date":"2026-04-27","timeIn":"20:28","timeOut":"23:04","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"51cbb823d310","dept":"骨科","doctor":"施應全","surgery":"ORIf","note":"","hasLic":"否"},{"id":"34559c6721f6","date":"2026-04-27","timeIn":"20:24","timeOut":"23:04","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"f86862ba9c21","date":"2026-04-27","timeIn":"18:51","timeOut":"02:15","type":"跟刀手術","vendorId":"e16ce10d7d55","personId":"b20dfc3200b3","dept":"心臟外科","doctor":"張雲媛","surgery":"VV","note":"","hasLic":"是"},{"id":"877bad128648","date":"2026-04-27","timeIn":"18:51","timeOut":"20:31","type":"跟刀手術","vendorId":"e16ce10d7d55","personId":"d472f5001ebf","dept":"心臟外科","doctor":"張雲媛","surgery":"Evlt","note":"","hasLic":"否"},{"id":"358c5f31b942","date":"2026-04-27","timeIn":"15:17","timeOut":"17:28","type":"跟刀手術","vendorId":"1b4b032a6e3e","personId":"e409c3c6164e","dept":"骨科","doctor":"許立和","surgery":"RSA","note":"","hasLic":"是"},{"id":"bc5442ec778d","date":"2026-04-27","timeIn":"14:52","timeOut":"15:04","type":"維修保養","vendorId":"2995bf95d12f","personId":"f34f719ff715","dept":"開刀房共用設備","doctor":"","surgery":"","note":"以諾康主機","hasLic":"是"},{"id":"30c0a96235df","date":"2026-04-27","timeIn":"14:04","timeOut":"17:20","type":"跟刀手術","vendorId":"1b4b032a6e3e","personId":"c2417022fa4e","dept":"骨科","doctor":"許立和","surgery":"Rsa","note":"","hasLic":"是"},{"id":"cd1c685c4df6","date":"2026-04-27","timeIn":"14:01","timeOut":"15:08","type":"跟刀手術","vendorId":"7e1cc497a560","personId":"c1f41b15921f","dept":"婦產科","doctor":"龔晏萱","surgery":"子宮鏡","note":"","hasLic":"是"},{"id":"f77b24548b71","date":"2026-04-27","timeIn":"12:42","timeOut":"14:35","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"fc0759248c4c","date":"2026-04-27","timeIn":"09:57","timeOut":"15:06","type":"維修保養","vendorId":"ffa73d53ad33","personId":"e365e4a3d70e","dept":"開刀房共用設備","doctor":"","surgery":"","note":"定位系統","hasLic":"否"},{"id":"786638c6e487","date":"2026-04-27","timeIn":"09:58","timeOut":"15:06","type":"維修保養","vendorId":"ffa73d53ad33","personId":"c7cb03d96233","dept":"開刀房共用設備","doctor":"","surgery":"","note":"定位系統","hasLic":"否"},{"id":"fc79e44195df","date":"2026-04-27","timeIn":"09:57","timeOut":"15:06","type":"維修保養","vendorId":"ffa73d53ad33","personId":"e64b4f7e1693","dept":"開刀房共用設備","doctor":"","surgery":"","note":"定位儀器","hasLic":"否"},{"id":"cea46f4b421a","date":"2026-04-27","timeIn":"08:27","timeOut":"23:32","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"TKR","note":"","hasLic":"否"},{"id":"3ac5e125943f","date":"2026-04-26","timeIn":"07:56","timeOut":"09:18","type":"跟刀手術","vendorId":"7e1cc497a560","personId":"f39d6500d203","dept":"婦產科","doctor":"徐靜","surgery":"TCR","note":"","hasLic":"是"},{"id":"1250fabbb1d2","date":"2026-04-26","timeIn":"07:55","timeOut":"13:55","type":"跟刀手術","vendorId":"0cf28e366448","personId":"7d95b379cb47","dept":"神經外科","doctor":"邱建才","surgery":"Spinal fusion","note":"","hasLic":"是"},{"id":"1add2282e50f","date":"2026-04-26","timeIn":"07:55","timeOut":"10:00","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"364db5e9d162","date":"2026-04-26","timeIn":"20:49","timeOut":"21:53","type":"跟刀手術","vendorId":"f9523825b1b0","personId":"20eba908958f","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"6142cb90e82c","date":"2026-04-26","timeIn":"13:14","timeOut":"14:40","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"45bc21356db7","date":"2026-04-26","timeIn":"09:57","timeOut":"16:17","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"吳長晉","surgery":"Peid","note":"","hasLic":"是"},{"id":"afab0548b211","date":"2026-04-26","timeIn":"09:54","timeOut":"16:18","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"吳長晉","surgery":"PEID","note":"","hasLic":"是"},{"id":"b0d86b6e8266","date":"2026-04-26","timeIn":"08:38","timeOut":"11:08","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"施胤全","surgery":"Bipolar","note":"","hasLic":"否"},{"id":"99618b28b3ca","date":"2026-04-26","timeIn":"08:10","timeOut":"13:54","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"骨科","doctor":"吳長晉","surgery":"水泥","note":"","hasLic":"是"},{"id":"55a54721f6a0","date":"2026-04-25","timeIn":"23:58","timeOut":"01:15","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"吳長晉","surgery":"Meniscus","note":"","hasLic":"是"},{"id":"f238e66f008a","date":"2026-04-25","timeIn":"17:14","timeOut":"22:39","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"吳長晉","surgery":"Peid","note":".","hasLic":"是"},{"id":"5493fd4ba784","date":"2026-04-25","timeIn":"13:45","timeOut":"20:12","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"5a5b2f65d949","date":"2026-04-25","timeIn":"08:30","timeOut":"14:47","type":"跟刀手術","vendorId":"a08ad6a2999d","personId":"243c781afd1a","dept":"骨科","doctor":"吳長晉","surgery":"Tkr","note":"","hasLic":"否"},{"id":"530f835ab347","date":"2026-04-24","timeIn":"07:45","timeOut":"10:20","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"caf804fd6718","dept":"骨科","doctor":"林冠宇","surgery":"ORIF","note":"無","hasLic":"是"},{"id":"e262a2dcfaf8","date":"2026-04-24","timeIn":"16:50","timeOut":"17:54","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"林冠宇","surgery":"ORIF","note":"","hasLic":"是"},{"id":"07ca49e6fbdf","date":"2026-04-24","timeIn":"12:57","timeOut":"02:14","type":"跟刀手術","vendorId":"f08d5296a3f8","personId":"0274a1b31873","dept":"眼科","doctor":"01711","surgery":"Cata","note":"","hasLic":"是"},{"id":"4916f34afffd","date":"2026-04-24","timeIn":"12:36","timeOut":"02:10","type":"跟刀手術","vendorId":"6722c6096b64","personId":"34b16e496dac","dept":"骨科","doctor":"施胤全","surgery":"TFCC","note":"","hasLic":"是"},{"id":"cfd439611aaa","date":"2026-04-24","timeIn":"08:12","timeOut":"11:18","type":"跟刀手術","vendorId":"bbb4b6c6f12a","personId":"a830727c0698","dept":"骨科","doctor":"施胤全","surgery":"RCT","note":"","hasLic":"是"},{"id":"4ff27a1b38cd","date":"2026-04-23","timeIn":"21:46","timeOut":"15:15","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"caf804fd6718","dept":"骨科","doctor":"吳長晉","surgery":"ORIF","note":"","hasLic":"是"},{"id":"9622fb6563a9","date":"2026-04-23","timeIn":"16:41","timeOut":"17:53","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"骨科","doctor":"黃昶昱","surgery":"水泥","note":"","hasLic":"是"},{"id":"082c83095e41","date":"2026-04-23","timeIn":"14:46","timeOut":"16:20","type":"跟刀手術","vendorId":"02fed8a0e4c6","personId":"994a398299b6","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"否"},{"id":"698ab221b429","date":"2026-04-22","timeIn":"20:44","timeOut":"22:24","type":"跟刀手術","vendorId":"8ba33fdc8eb7","personId":"887e85a9387a","dept":"骨科","doctor":"賴昆鴻","surgery":"Orif","note":"","hasLic":"否"},{"id":"2bb5f3425f2a","date":"2026-04-22","timeIn":"17:55","timeOut":"18:56","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"吳長晉","surgery":"Patella release","note":"","hasLic":"是"},{"id":"26b30318f4b0","date":"2026-04-22","timeIn":"16:38","timeOut":"19:49","type":"跟刀手術","vendorId":"d4de0a6b8cd9","personId":"213c7879e693","dept":"其他","doctor":"保養機器","surgery":"保養機器","note":"","hasLic":"否"},{"id":"fe5b3e8897f1","date":"2026-04-22","timeIn":"16:38","timeOut":"19:50","type":"跟刀手術","vendorId":"d4de0a6b8cd9","personId":"11d28283b603","dept":"其他","doctor":"","surgery":"Na","note":"","hasLic":"是"},{"id":"06b953f75108","date":"2026-05-31","timeIn":"07:53","timeOut":"11:15","type":"跟刀手術","vendorId":"3c00747e49f6","personId":"8cd51692c9e5","dept":"婦產科","doctor":"龔晏萱","surgery":"微波消融","note":"","hasLic":"是"},{"id":"359dddf107d1","date":"2026-05-31","timeIn":"07:45","timeOut":"12:22","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"ac30b6d8eac6","date":"2026-05-31","timeIn":"07:30","timeOut":"12:21","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"ad44e0eaf877","dept":"神經外科","doctor":"邱建才","surgery":"Spinal fusion","note":"","hasLic":"是"},{"id":"c67090e3221e","date":"2026-05-31","timeIn":"15:24","timeOut":"16:04","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"d3124e4df8be","dept":"骨科","doctor":"黃昶昱","surgery":"ORIF","note":"","hasLic":"是"},{"id":"558e2b91b007","date":"2026-05-31","timeIn":"13:18","timeOut":"15:42","type":"跟刀手術","vendorId":"3c6bfe27c0cc","personId":"e0d27a00c379","dept":"骨科","doctor":"黃昶昱","surgery":"ORIF","note":"","hasLic":"是"},{"id":"5529d8fa4077","date":"2026-05-31","timeIn":"13:00","timeOut":"14:42","type":"跟刀手術","vendorId":"959d67478208","personId":"a5cc425d7d98","dept":"骨科","doctor":"吳長晉","surgery":"ACL","note":"","hasLic":"是"},{"id":"b90a60a89aa1","date":"2026-05-31","timeIn":"13:00","timeOut":"14:42","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"吳長晉","surgery":"ACL","note":"","hasLic":"是"},{"id":"bbb8969961ab","date":"2026-05-31","timeIn":"11:22","timeOut":"12:53","type":"跟刀手術","vendorId":"8ba33fdc8eb7","personId":"887e85a9387a","dept":"骨科","doctor":"黃昶昱","surgery":"ORIF Ankle","note":"","hasLic":"是"},{"id":"0af3d1e6677c","date":"2026-05-31","timeIn":"08:10","timeOut":"11:23","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"吳長晉","surgery":"Peid","note":"","hasLic":"是"},{"id":"a7de4a33bd5a","date":"2026-05-30","timeIn":"22:35","timeOut":"00:02","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"骨科","doctor":"黃昶昱","surgery":"水泥","note":"","hasLic":"是"},{"id":"be7bed9be1ee","date":"2026-05-30","timeIn":"13:13","timeOut":"17:19","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"ad44e0eaf877","dept":"骨科","doctor":"吳長晉","surgery":"Spinal fixation","note":"","hasLic":"是"},{"id":"ca06e4be2e99","date":"2026-05-30","timeIn":"08:28","timeOut":"12:28","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"THR","note":"","hasLic":"否"},{"id":"51123b41b090","date":"2026-05-30","timeIn":"08:11","timeOut":"17:19","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"骨科","doctor":"林冠宇","surgery":"水泥","note":"","hasLic":"是"},{"id":"f8c488125016","date":"2026-05-29","timeIn":"14:08","timeOut":"11:23","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"林冠宇","surgery":"ORIF","note":"","hasLic":"是"},{"id":"badd4c81a18d","date":"2026-05-29","timeIn":"12:24","timeOut":"17:34","type":"跟刀手術","vendorId":"2122f33f9eee","personId":"0f1512f6e27d","dept":"骨科","doctor":"施胤全","surgery":"Rct","note":"","hasLic":"是"},{"id":"a9b522e712f7","date":"2026-05-29","timeIn":"10:45","timeOut":"13:32","type":"跟刀手術","vendorId":"5ec0e0d1211e","personId":"6c34c0776dac","dept":"神經外科","doctor":"邱建才主任","surgery":"VP shunt","note":"","hasLic":"是"},{"id":"d17c0800b720","date":"2026-05-29","timeIn":"10:15","timeOut":"12:00","type":"跟刀手術","vendorId":"f9836fb64d4c","personId":"5b39f66ec4f0","dept":"骨科","doctor":"施胤全","surgery":"TFCC","note":"","hasLic":"是"},{"id":"ccc9d3ddf89c","date":"2026-05-29","timeIn":"08:16","timeOut":"10:13","type":"跟刀手術","vendorId":"deef13128d15","personId":"c362167380b2","dept":"泌尿科","doctor":"吳昀叡","surgery":"RIRS","note":"","hasLic":"是"},{"id":"beaeaa843547","date":"2026-05-29","timeIn":"08:14","timeOut":"11:49","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"ad44e0eaf877","dept":"","doctor":"邱建才","surgery":"ADR","note":"","hasLic":"是"},{"id":"b22da2807a2e","date":"2026-05-29","timeIn":"08:10","timeOut":"12:00","type":"跟刀手術","vendorId":"61f7d7543bc3","personId":"6ba47d10905d","dept":"神經外科","doctor":"邱建材","surgery":"C-spine","note":"","hasLic":"是"},{"id":"d33b702873e9","date":"2026-05-29","timeIn":"08:10","timeOut":"12:01","type":"跟刀手術","vendorId":"61f7d7543bc3","personId":"73a1ae2dd502","dept":"神經外科","doctor":"邱建才","surgery":"C-spine","note":"","hasLic":"是"},{"id":"407f895718ac","date":"2026-05-29","timeIn":"08:10","timeOut":"12:25","type":"跟刀手術","vendorId":"61bb90453b8b","personId":"520b2dbdab6a","dept":"神經外科","doctor":"邱建財","surgery":"C spine","note":"","hasLic":"是"},{"id":"43531a7f05fc","date":"2026-05-29","timeIn":"08:09","timeOut":"11:46","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"40fba7df2182","date":"2026-05-28","timeIn":"16:43","timeOut":"10:15","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"黃昶昱","surgery":"ORIF","note":"","hasLic":"是"},{"id":"958b959f1c71","date":"2026-05-28","timeIn":"13:22","timeOut":"16:16","type":"跟刀手術","vendorId":"61bb90453b8b","personId":"520b2dbdab6a","dept":"神經外科","doctor":"邱建財","surgery":"腦瘤","note":"","hasLic":"是"},{"id":"3e8acaa4c668","date":"2026-05-28","timeIn":"12:24","timeOut":"16:41","type":"跟刀手術","vendorId":"5ec0e0d1211e","personId":"6c34c0776dac","dept":"神經外科","doctor":"邱建才主任","surgery":"Brain tumor","note":"","hasLic":"是"},{"id":"76891a45a106","date":"2026-05-28","timeIn":"12:10","timeOut":"13:41","type":"跟刀手術","vendorId":"a0c7a4affdee","personId":"23f69d1d8f0b","dept":"泌尿科","doctor":"莊德彥","surgery":"RIRS","note":"","hasLic":"是"},{"id":"787b291f3fcb","date":"2026-05-28","timeIn":"11:40","timeOut":"14:12","type":"跟刀手術","vendorId":"4fc3bbf1820a","personId":"8b2d07cd1ad7","dept":"神經外科","doctor":"邱建才","surgery":"腦瘤","note":"","hasLic":"是"},{"id":"b30c22e25939","date":"2026-05-28","timeIn":"11:18","timeOut":"12:51","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"李祐萱","surgery":"敷料","note":"","hasLic":"是"},{"id":"cef5622a0f44","date":"2026-05-28","timeIn":"08:04","timeOut":"11:47","type":"跟刀手術","vendorId":"7c0c74097a7e","personId":"74b7fdb620ef","dept":"泌尿科","doctor":"莊德彥","surgery":"Laser turp","note":"","hasLic":"否"},{"id":"49632a2c5068","date":"2026-05-28","timeIn":"08:01","timeOut":"10:09","type":"跟刀手術","vendorId":"deef13128d15","personId":"d402a6f70449","dept":"泌尿科","doctor":"陳柏成","surgery":"RIRS","note":"","hasLic":"是"},{"id":"688d00ed0905","date":"2026-05-27","timeIn":"14:59","timeOut":"17:55","type":"跟刀手術","vendorId":"8af37017ef97","personId":"5ce6bddd034d","dept":"神經外科","doctor":"邱建才","surgery":"IPD","note":"","hasLic":"是"},{"id":"7123b752efd9","date":"2026-05-27","timeIn":"14:59","timeOut":"17:55","type":"跟刀手術","vendorId":"8af37017ef97","personId":"313ed9a93352","dept":"神經外科","doctor":"邱建才","surgery":"IPD","note":"","hasLic":"是"},{"id":"51970d468b19","date":"2026-05-27","timeIn":"14:07","timeOut":"15:23","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"8742f4bbeaa7","dept":"骨科","doctor":"姜志勇","surgery":"Orif","note":"","hasLic":"否"},{"id":"18255d1a538c","date":"2026-05-27","timeIn":"12:18","timeOut":"13:59","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"姜志勇","surgery":"RCT","note":"","hasLic":"是"},{"id":"7f8917c79e69","date":"2026-05-27","timeIn":"10:34","timeOut":"18:03","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"THR","note":"","hasLic":"否"},{"id":"3bf9adefd418","date":"2026-05-27","timeIn":"09:44","timeOut":"14:27","type":"跟刀手術","vendorId":"deef13128d15","personId":"c362167380b2","dept":"泌尿科","doctor":"陳柏誠","surgery":"RIRS","note":"","hasLic":"是"},{"id":"75de5586c546","date":"2026-05-27","timeIn":"08:05","timeOut":"18:05","type":"跟刀手術","vendorId":"61bb90453b8b","personId":"520b2dbdab6a","dept":"神經外科","doctor":"邱建才","surgery":"腰椎","note":"","hasLic":"是"},{"id":"13ebb41d9e1e","date":"2026-05-26","timeIn":"07:49","timeOut":"17:54","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"047af2158102","date":"2026-05-26","timeIn":"07:37","timeOut":"13:39","type":"跟刀手術","vendorId":"65f3beed6eab","personId":"ebc5d33cb19d","dept":"神經外科","doctor":"邱","surgery":"M I s","note":"","hasLic":"是"},{"id":"b37210221a97","date":"2026-05-26","timeIn":"07:34","timeOut":"17:24","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"e280c25e29e0","dept":"神經外科","doctor":"邱建才","surgery":"Spinal fusion","note":"","hasLic":"是"},{"id":"a4c9154b1e6d","date":"2026-05-26","timeIn":"18:34","timeOut":"19:34","type":"跟刀手術","vendorId":"f9523825b1b0","personId":"20eba908958f","dept":"骨科","doctor":"黃昶昱","surgery":"Orif","note":"","hasLic":"是"},{"id":"0fb61ee43ce2","date":"2026-05-26","timeIn":"17:52","timeOut":"19:21","type":"跟刀手術","vendorId":"02fed8a0e4c6","personId":"13dd365920c4","dept":"骨科","doctor":"賴","surgery":"Orif","note":"","hasLic":"是"},{"id":"3472467868f7","date":"2026-05-26","timeIn":"17:52","timeOut":"19:21","type":"跟刀手術","vendorId":"02fed8a0e4c6","personId":"994a398299b6","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"1cc3918407ac","date":"2026-05-26","timeIn":"12:58","timeOut":"15:48","type":"跟刀手術","vendorId":"deef13128d15","personId":"c362167380b2","dept":"泌尿科","doctor":"吳昀叡","surgery":"RIRS","note":"","hasLic":"是"},{"id":"043ad1c775a1","date":"2026-05-26","timeIn":"12:57","timeOut":"15:46","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"bdb3e16de4b2","dept":"骨科","doctor":"許立和","surgery":"tkr","note":"","hasLic":"否"},{"id":"6cf3a396942f","date":"2026-05-26","timeIn":"11:53","timeOut":"14:15","type":"跟刀手術","vendorId":"fe9dd369d675","personId":"4c3a1f6df9f3","dept":"泌尿科","doctor":"鄭詠升","surgery":"Cc","note":"","hasLic":"是"},{"id":"ac39fad4846e","date":"2026-05-26","timeIn":"10:58","timeOut":"11:14","type":"跟刀手術","vendorId":"b5eba6c2a868","personId":"a97ef242c5e9","dept":"心臟外科","doctor":"盤點","surgery":"盤點","note":"","hasLic":"否"},{"id":"64174d5d58fe","date":"2026-05-26","timeIn":"09:12","timeOut":"14:19","type":"跟刀手術","vendorId":"7c0c74097a7e","personId":"74b7fdb620ef","dept":"泌尿科","doctor":"吳昀叡","surgery":"Laser turp","note":"","hasLic":"否"},{"id":"ba7e32df00f5","date":"2026-05-26","timeIn":"08:20","timeOut":"09:53","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"cf41f98714e8","dept":"骨科","doctor":"施胤全","surgery":"Orif","note":"","hasLic":"否"},{"id":"bdbb250ed37d","date":"2026-05-25","timeIn":"21:57","timeOut":"22:51","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"5092ef3aa0b3","dept":"骨科","doctor":"姜志勇","surgery":"ORIF","note":"","hasLic":"是"},{"id":"adbfca802db2","date":"2026-05-25","timeIn":"15:31","timeOut":"16:09","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"8742f4bbeaa7","dept":"骨科","doctor":"吳長晉","surgery":"Orif","note":"","hasLic":"否"},{"id":"3d6c4f413a2b","date":"2026-05-25","timeIn":"13:38","timeOut":"18:45","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"THR","note":"","hasLic":"否"},{"id":"55794e74bc75","date":"2026-05-25","timeIn":"12:33","timeOut":"13:34","type":"跟刀手術","vendorId":"b57bc4d7ff73","personId":"0b84a3456ed3","dept":"泌尿科","doctor":"陳柏誠","surgery":"菜花","note":"","hasLic":"否"},{"id":"9e9125af167c","date":"2026-05-25","timeIn":"12:34","timeOut":"13:34","type":"跟刀手術","vendorId":"b57bc4d7ff73","personId":"fb54e1f5e82c","dept":"泌尿科","doctor":"陳柏誠","surgery":"菜花","note":"","hasLic":"是"},{"id":"c23a283f432e","date":"2026-05-25","timeIn":"10:38","timeOut":"15:14","type":"跟刀手術","vendorId":"d1a97d62fbdb","personId":"de8fdb65f807","dept":"骨科","doctor":"吳長晉","surgery":"Rev hip","note":"","hasLic":"否"},{"id":"a603db880826","date":"2026-05-25","timeIn":"10:25","timeOut":"12:15","type":"跟刀手術","vendorId":"21b5b6dc74c1","personId":"0453c82734cd","dept":"骨科","doctor":"黃昶昱","surgery":"AC","note":"","hasLic":"是"},{"id":"827ea7ca8afc","date":"2026-05-25","timeIn":"10:06","timeOut":"10:22","type":"維修保養","vendorId":"ffa73d53ad33","personId":"8d87fa431782","dept":"其他","doctor":"","surgery":"","note":"定位系統","hasLic":"否"},{"id":"b9249eeb264e","date":"2026-05-25","timeIn":"10:05","timeOut":"11:39","type":"維修保養","vendorId":"ffa73d53ad33","personId":"e365e4a3d70e","dept":"開刀房共用設備","doctor":"","surgery":"","note":"","hasLic":"否"},{"id":"bcdf012aa24d","date":"2026-05-25","timeIn":"10:02","timeOut":"11:39","type":"維修保養","vendorId":"ffa73d53ad33","personId":"8d87fa431782","dept":"其他","doctor":"","surgery":"","note":"定位系統","hasLic":"否"},{"id":"2ec40fdb8aba","date":"2026-05-25","timeIn":"10:02","timeOut":"10:24","type":"維修保養","vendorId":"ffa73d53ad33","personId":"e365e4a3d70e","dept":"開刀房共用設備","doctor":"","surgery":"","note":"","hasLic":"否"},{"id":"e4939e29c420","date":"2026-05-25","timeIn":"09:29","timeOut":"08:23","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"吳長晉","surgery":"Meniscus","note":"","hasLic":"是"},{"id":"33af0f8c3dae","date":"2026-05-25","timeIn":"08:24","timeOut":"10:32","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"黃昶昱","surgery":"Peid","note":"","hasLic":"是"},{"id":"3fed7a4616f9","date":"2026-05-25","timeIn":"08:21","timeOut":"09:44","type":"跟刀手術","vendorId":"2122f33f9eee","personId":"0f8ba63a593b","dept":"骨科","doctor":"吳副","surgery":"Kneescope","note":"","hasLic":"是"},{"id":"6ee2ae724b3e","date":"2026-05-24","timeIn":"07:46","timeOut":"11:43","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"e280c25e29e0","dept":"神經外科","doctor":"邱建才","surgery":"Spinal fusion","note":"","hasLic":"是"},{"id":"a4150e2365f6","date":"2026-05-24","timeIn":"07:45","timeOut":"11:43","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"59c17cd089bb","date":"2026-05-24","timeIn":"21:36","timeOut":"23:23","type":"跟刀手術","vendorId":"2d4b566ba385","personId":"8618f7745027","dept":"胸腔外科","doctor":"陳右儒","surgery":"ORIF","note":"","hasLic":"是"},{"id":"886b38eaace4","date":"2026-05-24","timeIn":"19:00","timeOut":"09:29","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"4e3d0a20f55b","dept":"骨科","doctor":"林冠宇","surgery":"orif","note":"","hasLic":"是"},{"id":"1630716f6323","date":"2026-05-24","timeIn":"08:18","timeOut":"10:16","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"4e3d0a20f55b","dept":"骨科","doctor":"林冠宇","surgery":"orif","note":"","hasLic":"是"},{"id":"2e0eee4f492f","date":"2026-05-23","timeIn":"22:07","timeOut":"03:00","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"吳長晉","surgery":"Peid","note":"","hasLic":"是"},{"id":"b82990ca1d0c","date":"2026-05-23","timeIn":"15:23","timeOut":"08:21","type":"跟刀手術","vendorId":"2d4b566ba385","personId":"8618f7745027","dept":"胸腔外科","doctor":"陳右儒","surgery":"ORIF","note":"","hasLic":"是"},{"id":"9a996a5add5e","date":"2026-05-23","timeIn":"13:49","timeOut":"16:08","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"THR","note":"","hasLic":"否"},{"id":"58cb4372dba2","date":"2026-05-23","timeIn":"08:32","timeOut":"11:41","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"吳長晉","surgery":"Peid","note":"","hasLic":"是"},{"id":"c8c15022f421","date":"2026-05-23","timeIn":"08:17","timeOut":"11:32","type":"跟刀手術","vendorId":"a0c7a4affdee","personId":"f578ef156181","dept":"泌尿科","doctor":"王炯珵","surgery":"RIRS","note":"","hasLic":"否"},{"id":"c17e659eb1bb","date":"2026-05-23","timeIn":"08:04","timeOut":"12:24","type":"跟刀手術","vendorId":"4febb5101a6d","personId":"5ba6c60e439f","dept":"骨科","doctor":"姜","surgery":"L-spine","note":"","hasLic":"是"},{"id":"e428d95a862c","date":"2026-05-23","timeIn":"07:46","timeOut":"12:24","type":"跟刀手術","vendorId":"ca2e88ff5ff6","personId":"c73be6d227db","dept":"骨科","doctor":"姜志勇","surgery":"脊椎手術","note":"","hasLic":"否"},{"id":"53ee2cc25070","date":"2026-05-22","timeIn":"07:41","timeOut":"12:24","type":"跟刀手術","vendorId":"77cb4fc13e2b","personId":"0436875e0a3f","dept":"骨科","doctor":"姜志勇","surgery":"L3-5 TLIF","note":"","hasLic":"否"},{"id":"a2b22ca4f3eb","date":"2026-05-22","timeIn":"07:35","timeOut":"12:25","type":"跟刀手術","vendorId":"77cb4fc13e2b","personId":"d2e5bf41ff13","dept":"骨科","doctor":"姜志勇","surgery":"TLIF","note":"","hasLic":"是"},{"id":"996f7f7bf0e5","date":"2026-05-22","timeIn":"15:44","timeOut":"17:23","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"骨科","doctor":"施胤全","surgery":"水泥","note":"","hasLic":"是"},{"id":"191249e259ef","date":"2026-05-22","timeIn":"13:58","timeOut":"19:31","type":"跟刀手術","vendorId":"899cc09c1006","personId":"3053558e2501","dept":"乳房外科","doctor":"黃星華","surgery":"乳房全切","note":"","hasLic":"是"},{"id":"a0b1b097c8db","date":"2026-05-22","timeIn":"13:25","timeOut":"15:26","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"91cfac7f53fd","date":"2026-05-22","timeIn":"13:20","timeOut":"15:32","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"bdb3e16de4b2","dept":"骨科","doctor":"施胤全","surgery":"THR","note":"","hasLic":"否"},{"id":"0734b35fb79c","date":"2026-05-22","timeIn":"09:58","timeOut":"12:06","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"施胤全","surgery":"RCT","note":"","hasLic":"是"},{"id":"af295c736530","date":"2026-05-22","timeIn":"09:11","timeOut":"09:15","type":"跟刀手術","vendorId":"440fa1e5da0a","personId":"c96a07015bea","dept":"泌尿科","doctor":"王炯珵","surgery":"輸尿管支架","note":"","hasLic":"是"},{"id":"3748149bd194","date":"2026-05-22","timeIn":"09:01","timeOut":"11:44","type":"跟刀手術","vendorId":"188dfb836762","personId":"83798f22ef88","dept":"ENT","doctor":"陳正蔚","surgery":"導航","note":"","hasLic":"是"},{"id":"a724152097b7","date":"2026-05-21","timeIn":"22:16","timeOut":"00:12","type":"跟刀手術","vendorId":"136e2e9f1b6c","personId":"b2455fa707f0","dept":"骨科","doctor":"黃昶昱","surgery":"ORIF","note":"","hasLic":"否"},{"id":"44586342b835","date":"2026-05-21","timeIn":"20:07","timeOut":"21:40","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"黃昶昱","surgery":"Bipolar","note":"","hasLic":"否"},{"id":"40b42d405151","date":"2026-05-21","timeIn":"16:42","timeOut":"18:35","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"cf41f98714e8","dept":"骨科","doctor":"賴昆鴻","surgery":"Orif","note":"","hasLic":"否"},{"id":"4aa9c6610164","date":"2026-05-21","timeIn":"15:01","timeOut":"16:04","type":"跟刀手術","vendorId":"f9523825b1b0","personId":"2dd39e4da734","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"a4a375d5c4a6","date":"2026-05-21","timeIn":"12:37","timeOut":"13:47","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"3893392d3c1a","date":"2026-05-21","timeIn":"12:03","timeOut":"13:18","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"李祐萱","surgery":"水泥","note":"","hasLic":"是"},{"id":"118b1c2b9f08","date":"2026-05-21","timeIn":"10:14","timeOut":"12:44","type":"跟刀手術","vendorId":"a0c7a4affdee","personId":"f578ef156181","dept":"泌尿科","doctor":"莊德彥","surgery":"RIRS","note":"","hasLic":"否"},{"id":"71d779e04f55","date":"2026-05-21","timeIn":"08:33","timeOut":"10:08","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"6c1a78a5f7d7","dept":"骨科","doctor":"戴","surgery":"MUK","note":"","hasLic":"否"},{"id":"b99bdebedc67","date":"2026-05-21","timeIn":"08:32","timeOut":"10:08","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"772ed9051fd2","dept":"骨科","doctor":"戴瀚成","surgery":"MUK","note":"","hasLic":"是"},{"id":"4bf5843de019","date":"2026-05-21","timeIn":"08:13","timeOut":"20:02","type":"跟刀手術","vendorId":"d43ebec5e2bd","personId":"7289fb4450ee","dept":"神經外科","doctor":"李弘裕","surgery":"C spine","note":"","hasLic":"是"},{"id":"15df36c84163","date":"2026-05-20","timeIn":"07:47","timeOut":"09:50","type":"跟刀手術","vendorId":"e96586bdbaa2","personId":"1ca2a6a35666","dept":"婦產科","doctor":"徐靖","surgery":"LAVH","note":"","hasLic":"否"},{"id":"7d9f877adca7","date":"2026-05-20","timeIn":"15:01","timeOut":"16:05","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"e280c25e29e0","dept":"骨科","doctor":"姜志勇","surgery":"Vertebral plasty","note":"","hasLic":"是"},{"id":"b77eafc6ec34","date":"2026-05-20","timeIn":"14:30","timeOut":"21:26","type":"跟刀手術","vendorId":"65f3beed6eab","personId":"ebc5d33cb19d","dept":"神經外科","doctor":"邱","surgery":"M l S","note":"","hasLic":"否"},{"id":"872778ea1ef4","date":"2026-05-20","timeIn":"13:21","timeOut":"15:20","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"bdb3e16de4b2","dept":"骨科","doctor":"姜志勇","surgery":"TKR","note":"","hasLic":"否"},{"id":"30a7f363ad08","date":"2026-05-20","timeIn":"13:13","timeOut":"13:16","type":"跟刀手術","vendorId":"d43ebec5e2bd","personId":"5aba615175ee","dept":"神經外科","doctor":"邱建才","surgery":"TPS","note":"","hasLic":"是"},{"id":"f758260f1f81","date":"2026-05-20","timeIn":"10:00","timeOut":"13:16","type":"跟刀手術","vendorId":"bbeda578a846","personId":"fa3eb885cbbc","dept":"神經外科","doctor":"邱建才","surgery":"腰椎","note":"","hasLic":"是"},{"id":"00f309ec611b","date":"2026-05-20","timeIn":"13:10","timeOut":"13:17","type":"跟刀手術","vendorId":"bbeda578a846","personId":"fa3eb885cbbc","dept":"神經外科","doctor":"邱建才","surgery":"腰椎","note":"","hasLic":"是"},{"id":"5bfdbf63428b","date":"2026-05-20","timeIn":"13:04","timeOut":"21:27","type":"跟刀手術","vendorId":"bbeda578a846","personId":"fa3eb885cbbc","dept":"神經外科","doctor":"邱建才","surgery":"腰椎","note":"","hasLic":"是"},{"id":"597485d28038","date":"2026-05-20","timeIn":"09:59","timeOut":"10:13","type":"跟刀手術","vendorId":"f2b75bd86c87","personId":"a238af6beac1","dept":"泌尿科","doctor":"柯智群","surgery":"達文西攝護腺","note":"","hasLic":"是"},{"id":"54ac5fade179","date":"2026-05-20","timeIn":"09:58","timeOut":"13:18","type":"跟刀手術","vendorId":"f2b75bd86c87","personId":"a238af6beac1","dept":"泌尿科","doctor":"柯智羣","surgery":"達文西攝護腺","note":"","hasLic":"是"},{"id":"136aa9b10ca3","date":"2026-05-20","timeIn":"09:54","timeOut":"13:18","type":"跟刀手術","vendorId":"f2b75bd86c87","personId":"a238af6beac1","dept":"泌尿科","doctor":"柯智羣","surgery":"達文西攝護腺","note":"","hasLic":"是"},{"id":"10449eb55526","date":"2026-05-20","timeIn":"09:30","timeOut":"17:33","type":"跟刀手術","vendorId":"d2ff34f7e70d","personId":"eb9824b0b494","dept":"眼科","doctor":"蘇桓儀","surgery":"Z8 飛秒雷射","note":"","hasLic":"是"},{"id":"66e88e3e43da","date":"2026-05-20","timeIn":"08:32","timeOut":"18:54","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"THR","note":"","hasLic":"否"},{"id":"93147ccb6d55","date":"2026-05-20","timeIn":"08:24","timeOut":"12:22","type":"跟刀手術","vendorId":"2811885b4f6a","personId":"763c90067659","dept":"泌尿科","doctor":"王炯程","surgery":"BPH","note":"","hasLic":"是"},{"id":"f2d331bd130e","date":"2026-05-19","timeIn":"07:52","timeOut":"13:42","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"ad44e0eaf877","dept":"神經外科","doctor":"邱建才","surgery":"Spinal fusion","note":"","hasLic":"是"},{"id":"29ab62020ce9","date":"2026-05-19","timeIn":"07:44","timeOut":"13:17","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"8f7ef0c10e3d","date":"2026-05-19","timeIn":"07:40","timeOut":"16:05","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"13031065d4e0","date":"2026-05-19","timeIn":"13:50","timeOut":"17:33","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"cf41f98714e8","dept":"骨科","doctor":"施胤全","surgery":"Orif","note":"","hasLic":"否"},{"id":"0f5b87125e49","date":"2026-05-19","timeIn":"13:50","timeOut":"16:46","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"caf804fd6718","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"738aa23f7ed6","date":"2026-05-19","timeIn":"12:45","timeOut":"14:06","type":"跟刀手術","vendorId":"4febb5101a6d","personId":"5ba6c60e439f","dept":"骨科","doctor":"許立和","surgery":"L-spine","note":"","hasLic":"是"},{"id":"6130b3e272ce","date":"2026-05-19","timeIn":"10:51","timeOut":"17:15","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"d01dc6cb9853","date":"2026-05-19","timeIn":"10:49","timeOut":"12:54","type":"跟刀手術","vendorId":"deef13128d15","personId":"1aadd7a4ba6f","dept":"泌尿科","doctor":"吳昀叡","surgery":"RIRS","note":"","hasLic":"是"},{"id":"8e12eca288b4","date":"2026-05-19","timeIn":"08:49","timeOut":"18:25","type":"跟刀手術","vendorId":"d2ff34f7e70d","personId":"0ed2f0bf663d","dept":"眼科","doctor":"江怡慧","surgery":"FLACS","note":"","hasLic":"否"},{"id":"a816f595162b","date":"2026-05-19","timeIn":"08:28","timeOut":"11:13","type":"跟刀手術","vendorId":"136e2e9f1b6c","personId":"68384fc4179a","dept":"Orif","doctor":"謝銘勳","surgery":"HLR","note":"","hasLic":"否"},{"id":"970a184eab92","date":"2026-05-19","timeIn":"08:25","timeOut":"10:27","type":"跟刀手術","vendorId":"5ec0e0d1211e","personId":"1b2a32277a25","dept":"骨科","doctor":"謝銘勳","surgery":"Patella","note":"","hasLic":"否"},{"id":"ef4733351cce","date":"2026-05-19","timeIn":"08:22","timeOut":"10:53","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"cf41f98714e8","dept":"骨科","doctor":"施胤全","surgery":"Orif","note":"","hasLic":"否"},{"id":"71b3963ec5eb","date":"2026-05-19","timeIn":"07:46","timeOut":"10:25","type":"跟刀手術","vendorId":"f5da50ca8368","personId":"bdb967f40274","dept":"泌尿科","doctor":"柯智羣","surgery":"PUL","note":"","hasLic":"是"},{"id":"45697666da27","date":"2026-05-18","timeIn":"07:44","timeOut":"14:07","type":"跟刀手術","vendorId":"f5da50ca8368","personId":"bdb967f40274","dept":"泌尿科","doctor":"柯智羣","surgery":"PUL","note":"","hasLic":"是"},{"id":"91610ea93fa5","date":"2026-05-18","timeIn":"17:40","timeOut":"19:20","type":"跟刀手術","vendorId":"e16ce10d7d55","personId":"20e29b1853ed","dept":"心臟外科","doctor":"張雲媛","surgery":"EVLT","note":"","hasLic":"是"},{"id":"8c1c72aadbb1","date":"2026-05-18","timeIn":"13:46","timeOut":"15:49","type":"跟刀手術","vendorId":"136e2e9f1b6c","personId":"68384fc4179a","dept":"骨科","doctor":"吳長晉","surgery":"HV","note":"","hasLic":"是"},{"id":"2399f8120236","date":"2026-05-18","timeIn":"13:46","timeOut":"15:19","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"吳長晉","surgery":"ORIF","note":"","hasLic":"是"},{"id":"131313cca1a1","date":"2026-05-18","timeIn":"09:04","timeOut":"14:22","type":"跟刀手術","vendorId":"f9523825b1b0","personId":"20eba908958f","dept":"骨科","doctor":"黃昶昱","surgery":"ORIF","note":"","hasLic":"是"},{"id":"74d92889f2c8","date":"2026-05-18","timeIn":"08:39","timeOut":"14:15","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"TKR","note":"","hasLic":"否"},{"id":"cd39e17b01e4","date":"2026-05-18","timeIn":"08:36","timeOut":"10:12","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"黃昶昱","surgery":"Root","note":"","hasLic":"是"},{"id":"87e420be32e4","date":"2026-05-18","timeIn":"08:09","timeOut":"10:09","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"8742f4bbeaa7","dept":"骨科","doctor":"賴昆鴻","surgery":"Orif","note":"","hasLic":"否"},{"id":"156e77a51acb","date":"2026-05-18","timeIn":"08:06","timeOut":"09:04","type":"跟刀手術","vendorId":"7e1cc497a560","personId":"c1f41b15921f","dept":"婦產科","doctor":"龔晏萱","surgery":"子宮鏡","note":"","hasLic":"是"},{"id":"91bd838bd85c","date":"2026-05-18","timeIn":"08:00","timeOut":"12:13","type":"跟刀手術","vendorId":"2811885b4f6a","personId":"afae3c16b42f","dept":"泌尿科","doctor":"王炯珵","surgery":"TURP laser","note":"","hasLic":"否"},{"id":"fd45eb43c0f7","date":"2026-05-17","timeIn":"07:42","timeOut":"13:02","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"75b060df7fbb","date":"2026-05-18","timeIn":"07:33","timeOut":"13:25","type":"跟刀手術","vendorId":"65f3beed6eab","personId":"ebc5d33cb19d","dept":"神經外科","doctor":"邱","surgery":"M l S","note":"","hasLic":"否"},{"id":"789b25f542e1","date":"2026-05-17","timeIn":"08:42","timeOut":"10:15","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"62324f08feb1","date":"2026-05-17","timeIn":"08:10","timeOut":"14:12","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"e280c25e29e0","dept":"骨科","doctor":"吳長晉","surgery":"Spinal fusion","note":"","hasLic":"是"},{"id":"b184a72ef98f","date":"2026-05-16","timeIn":"10:04","timeOut":"10:48","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"e280c25e29e0","dept":"骨科","doctor":"林冠宇","surgery":"Cement","note":"","hasLic":"是"},{"id":"df31922ec1da","date":"2026-05-16","timeIn":"08:01","timeOut":"15:25","type":"跟刀手術","vendorId":"deef13128d15","personId":"1aadd7a4ba6f","dept":"泌尿科","doctor":"柯智群","surgery":"RITS","note":"","hasLic":"是"},{"id":"804f4205f45b","date":"2026-05-15","timeIn":"17:31","timeOut":"17:37","type":"維修保養","vendorId":"ef963ba93f31","personId":"8df5faee93fc","dept":"其他","doctor":"","surgery":"","note":"飲水機","hasLic":"否"},{"id":"a0ded593e83b","date":"2026-05-15","timeIn":"13:42","timeOut":"15:08","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"黃昶昱","surgery":"ORIF","note":"","hasLic":"是"},{"id":"e969e144ed2a","date":"2026-05-15","timeIn":"13:06","timeOut":"13:28","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"6f1d3fce5027","dept":"骨科","doctor":"施胤全","surgery":"Orif","note":"","hasLic":"否"},{"id":"233d593effde","date":"2026-05-15","timeIn":"12:05","timeOut":"14:27","type":"跟刀手術","vendorId":"1c83e62101b9","personId":"065752ce56e3","dept":"骨科","doctor":"施胤全","surgery":"Biopolar","note":"","hasLic":"是"},{"id":"f35a83f6d62b","date":"2026-05-15","timeIn":"11:14","timeOut":"14:27","type":"跟刀手術","vendorId":"1c83e62101b9","personId":"bd9c2984ead5","dept":"骨科","doctor":"施胤全","surgery":"拔釘","note":"","hasLic":"是"},{"id":"89e461d3c6ee","date":"2026-05-15","timeIn":"11:13","timeOut":"11:20","type":"維修保養","vendorId":"a0c7a4affdee","personId":"f578ef156181","dept":"泌尿科","doctor":"","surgery":"","note":"更改帳單","hasLic":"否"},{"id":"1fedb2a745e9","date":"2026-05-15","timeIn":"11:00","timeOut":"12:49","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"施胤全","surgery":"Bipolar","note":"","hasLic":"否"},{"id":"bcddf822bfb4","date":"2026-05-15","timeIn":"08:45","timeOut":"11:21","type":"跟刀手術","vendorId":"a0c7a4affdee","personId":"f578ef156181","dept":"泌尿科","doctor":"王炯珵","surgery":"RIRS","note":"","hasLic":"否"},{"id":"63b89d878289","date":"2026-05-15","timeIn":"08:08","timeOut":"17:37","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"施胤全","surgery":"RCT","note":"","hasLic":"是"},{"id":"12bc06957e4a","date":"2026-05-13","timeIn":"22:29","timeOut":"00:39","type":"跟刀手術","vendorId":"365319adea3e","personId":"28abdb04cf16","dept":"骨科","doctor":"黃昶昱","surgery":"ORIF","note":"","hasLic":"是"},{"id":"0f96866e8837","date":"2026-05-14","timeIn":"21:03","timeOut":"22:42","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"黃昶昱","surgery":"Bipolar","note":"","hasLic":"否"},{"id":"58bf5c5090ce","date":"2026-05-14","timeIn":"16:30","timeOut":"16:38","type":"維修保養","vendorId":"f954a35cc59c","personId":"48575459a0ee","dept":"泌尿科","doctor":"","surgery":"","note":"包皮槍","hasLic":"是"},{"id":"3c2326835469","date":"2026-05-14","timeIn":"16:25","timeOut":"17:46","type":"跟刀手術","vendorId":"716c65336fb6","personId":"4bd221c7a90d","dept":"骨科","doctor":"黃昶昱","surgery":"KP","note":"","hasLic":"是"},{"id":"357423f61c21","date":"2026-05-14","timeIn":"13:11","timeOut":"14:35","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"賴昆鴻","surgery":"Meniscus","note":"","hasLic":"是"},{"id":"66827e98066d","date":"2026-05-14","timeIn":"12:10","timeOut":"12:28","type":"跟刀手術","vendorId":"d1a97d62fbdb","personId":"de8fdb65f807","dept":"骨科","doctor":"戴瀚成","surgery":"Rev hip","note":"","hasLic":"否"},{"id":"dbdc6b582ae9","date":"2026-05-14","timeIn":"10:12","timeOut":"12:34","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"戴瀚成","surgery":"Rev.THR","note":"","hasLic":"否"},{"id":"7f3f6bc097cd","date":"2026-05-14","timeIn":"09:47","timeOut":"11:47","type":"跟刀手術","vendorId":"7e1cc497a560","personId":"f39d6500d203","dept":"婦科","doctor":"龔晏萱","surgery":"TCR","note":"","hasLic":"是"},{"id":"2c64f4a8cde5","date":"2026-05-14","timeIn":"09:05","timeOut":"22:41","type":"跟刀手術","vendorId":"d43ebec5e2bd","personId":"7289fb4450ee","dept":"神經外科","doctor":"李弘裕","surgery":"L spine","note":"","hasLic":"是"},{"id":"74e111eda641","date":"2026-05-13","timeIn":"20:48","timeOut":"22:29","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"賴昆鴻","surgery":"Bipolar","note":"","hasLic":"否"},{"id":"670792ef5061","date":"2026-05-13","timeIn":"17:42","timeOut":"19:01","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"8742f4bbeaa7","dept":"骨科","doctor":"吳長晉","surgery":"Orif","note":"","hasLic":"否"},{"id":"127f8f85904e","date":"2026-05-13","timeIn":"17:08","timeOut":"22:04","type":"維修保養","vendorId":"8e2644e45a8a","personId":"2239d362aea9","dept":"骨科","doctor":"","surgery":"","note":"C-Arm","hasLic":"否"},{"id":"6b6c052b15d7","date":"2026-05-13","timeIn":"14:30","timeOut":"17:30","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"d0579a6d58f3","date":"2026-05-13","timeIn":"13:17","timeOut":"15:28","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"吳長晉","surgery":"RCT","note":"","hasLic":"是"},{"id":"afb63451c8c1","date":"2026-05-13","timeIn":"12:27","timeOut":"14:52","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"ea40400207ed","dept":"骨科","doctor":"林冠宇","surgery":"TkR","note":"","hasLic":"否"},{"id":"a530747190bc","date":"2026-05-13","timeIn":"12:02","timeOut":"12:54","type":"跟刀手術","vendorId":"d43ebec5e2bd","personId":"7289fb4450ee","dept":"骨科","doctor":"姜志勇","surgery":"L spine","note":"","hasLic":"是"},{"id":"9cf8f7aba347","date":"2026-05-13","timeIn":"10:29","timeOut":"11:04","type":"跟刀手術","vendorId":"f2b75bd86c87","personId":"a238af6beac1","dept":"泌尿科","doctor":"柯智羣","surgery":"達文西攝護腺癌切除","note":"","hasLic":"是"},{"id":"85baac3449f3","date":"2026-05-13","timeIn":"08:35","timeOut":"15:49","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"TKR","note":"","hasLic":"否"},{"id":"65f60b44f81a","date":"2026-05-13","timeIn":"08:03","timeOut":"09:11","type":"跟刀手術","vendorId":"2c2bace49b5d","personId":"8db7575ed6fc","dept":"骨科","doctor":"姜志勇","surgery":"Ostectomy","note":"","hasLic":"是"},{"id":"2f781e8ea17b","date":"2026-05-12","timeIn":"17:18","timeOut":"20:12","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"施胤全","surgery":"ACL","note":"5/12離場","hasLic":"是"},{"id":"abb610ed8e08","date":"2026-05-12","timeIn":"15:02","timeOut":"17:27","type":"跟刀手術","vendorId":"63a83504643a","personId":"d229c115ae35","dept":"骨科","doctor":"施胤全","surgery":"ACL avulsion","note":"","hasLic":"是"},{"id":"5df542815fad","date":"2026-05-12","timeIn":"14:42","timeOut":"19:03","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"施胤全ORIF","surgery":"ORIF","note":"","hasLic":"是"},{"id":"895900ee2d36","date":"2026-05-12","timeIn":"12:13","timeOut":"13:26","type":"跟刀手術","vendorId":"7e1cc497a560","personId":"c1f41b15921f","dept":"婦產科","doctor":"龔晏萱","surgery":"子宮鏡","note":"","hasLic":"是"},{"id":"50a834c059e9","date":"2026-05-12","timeIn":"12:00","timeOut":"13:38","type":"跟刀手術","vendorId":"fe9dd369d675","personId":"678c28235c4d","dept":"小兒外科","doctor":"鄭詠升","surgery":"CC","note":"","hasLic":"是"},{"id":"75ac89a5899f","date":"2026-05-12","timeIn":"10:11","timeOut":"11:32","type":"跟刀手術","vendorId":"2d4b566ba385","personId":"8618f7745027","dept":"胸腔外科","doctor":"陳右儒","surgery":"ORIF","note":"","hasLic":"是"},{"id":"d6a34520f6b3","date":"2026-05-12","timeIn":"11:11","timeOut":"14:17","type":"跟刀手術","vendorId":"deef13128d15","personId":"d402a6f70449","dept":"泌尿科","doctor":"柯智群","surgery":"RIRS","note":"","hasLic":"是"},{"id":"95b6260db791","date":"2026-05-12","timeIn":"10:21","timeOut":"11:06","type":"跟刀手術","vendorId":"2d4b566ba385","personId":"8618f7745027","dept":"胸腔外科","doctor":"陳右儒","surgery":"ORIF","note":"","hasLic":"是"},{"id":"aa39087b5ef6","date":"2026-05-12","timeIn":"09:55","timeOut":"15:56","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"戴瀚成","surgery":"TKR","note":"","hasLic":"否"},{"id":"20eea9cbdc9d","date":"2026-05-12","timeIn":"09:24","timeOut":"09:29","type":"維修保養","vendorId":"e16ce10d7d55","personId":"20e29b1853ed","dept":"心臟外科","doctor":"","surgery":"","note":"整理支架","hasLic":"是"},{"id":"9d4a1d550dc8","date":"2026-05-12","timeIn":"08:57","timeOut":"14:37","type":"跟刀手術","vendorId":"63a83504643a","personId":"583e0694e3f0","dept":"骨科","doctor":"施胤全","surgery":"Total shoulder","note":"","hasLic":"是"},{"id":"e1aa60c09411","date":"2026-05-12","timeIn":"08:25","timeOut":"11:05","type":"跟刀手術","vendorId":"1b4b032a6e3e","personId":"72941de6127b","dept":"骨科","doctor":"施胤全","surgery":"RSA","note":"","hasLic":"是"},{"id":"ce8dd76061da","date":"2026-05-12","timeIn":"08:13","timeOut":"13:38","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"骨科","doctor":"戴瀚成","surgery":"水泥","note":"","hasLic":"是"},{"id":"0ffddba7cc17","date":"2026-05-12","timeIn":"07:58","timeOut":"13:36","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"ad44e0eaf877","dept":"骨科","doctor":"謝銘勳","surgery":"Spinal fusion","note":"","hasLic":"是"},{"id":"2622e0f7eaab","date":"2026-05-11","timeIn":"14:40","timeOut":"16:10","type":"跟刀手術","vendorId":"e16ce10d7d55","personId":"b20dfc3200b3","dept":"心臟外科","doctor":"張雲媛","surgery":"EVLt","note":"","hasLic":"是"},{"id":"f74f3ffc0139","date":"2026-05-11","timeIn":"14:01","timeOut":"14:23","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"1c12defaefb7","dept":"骨科","doctor":"黃昶昱","surgery":"ORIF","note":"","hasLic":"是"},{"id":"50f154130512","date":"2026-05-11","timeIn":"12:48","timeOut":"14:23","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"cf41f98714e8","dept":"骨科","doctor":"黃昶昱","surgery":"Orif","note":"","hasLic":"否"},{"id":"a3e4acaf5688","date":"2026-05-11","timeIn":"12:40","timeOut":"14:51","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"2dce149dd51d","dept":"骨科","doctor":"許立禾","surgery":"PSN","note":"","hasLic":"否"},{"id":"3fd2b68583d3","date":"2026-05-11","timeIn":"12:40","timeOut":"15:02","type":"跟刀手術","vendorId":"83416da8d228","personId":"5d48e5b78537","dept":"骨科","doctor":"許立和","surgery":"Tkr","note":"","hasLic":"否"},{"id":"de6b597423d6","date":"2026-05-11","timeIn":"10:24","timeOut":"12:32","type":"跟刀手術","vendorId":"4fc3bbf1820a","personId":"08bf57e905be","dept":"美敦力導航","doctor":"邱建才","surgery":"Spine","note":"","hasLic":"否"},{"id":"d9f796cefbd2","date":"2026-05-11","timeIn":"10:14","timeOut":"12:32","type":"跟刀手術","vendorId":"4fc3bbf1820a","personId":"ed69c17358b2","dept":"神經外科","doctor":"邱建材","surgery":"脊椎導航","note":"","hasLic":"是"},{"id":"40f7c3301d85","date":"2026-05-11","timeIn":"10:14","timeOut":"12:32","type":"跟刀手術","vendorId":"5b8a434e5a23","personId":"1ab052b58011","dept":"神經外科","doctor":"邱建才","surgery":"脊椎導航","note":"","hasLic":"是"},{"id":"93293c8b902d","date":"2026-05-11","timeIn":"09:55","timeOut":"15:54","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"黃昶昱","surgery":"Meniscus","note":"","hasLic":"是"},{"id":"34e595125324","date":"2026-05-11","timeIn":"08:47","timeOut":"12:19","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"THR","note":"","hasLic":"否"},{"id":"aa78ef7b32db","date":"2026-05-11","timeIn":"08:06","timeOut":"09:45","type":"跟刀手術","vendorId":"7e1cc497a560","personId":"c1f41b15921f","dept":"婦產科","doctor":"龔晏萱","surgery":"子宮鏡","note":"","hasLic":"是"},{"id":"5cd8cedc2dde","date":"2026-05-11","timeIn":"07:47","timeOut":"22:01","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"e280c25e29e0","dept":"神經外科","doctor":"邱建才","surgery":"Spinal fusion","note":"","hasLic":"是"},{"id":"8f2cebdecd4d","date":"2026-05-11","timeIn":"07:30","timeOut":"08:14","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"457278e4b485","date":"2026-05-10","timeIn":"12:59","timeOut":"22:19","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"吳長晉","surgery":"PEID","note":"","hasLic":"是"},{"id":"389f97f41e44","date":"2026-05-09","timeIn":"23:01","timeOut":"03:07","type":"跟刀手術","vendorId":"7c0c74097a7e","personId":"74b7fdb620ef","dept":"泌尿科","doctor":"莊德彥","surgery":"BPH","note":"","hasLic":"否"},{"id":"7a0feeb63e2c","date":"2026-05-09","timeIn":"11:29","timeOut":"15:08","type":"跟刀手術","vendorId":"7c0c74097a7e","personId":"74b7fdb620ef","dept":"泌尿科","doctor":"莊德彥","surgery":"BPH","note":"","hasLic":"否"},{"id":"98502d21709d","date":"2026-05-09","timeIn":"08:33","timeOut":"11:19","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"TKR","note":"","hasLic":"否"},{"id":"7b862a183681","date":"2026-05-09","timeIn":"08:25","timeOut":"16:34","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"8742f4bbeaa7","dept":"骨科","doctor":"林冠宇","surgery":"ORIF","note":"","hasLic":"否"},{"id":"cbd592b077ab","date":"2026-05-09","timeIn":"08:00","timeOut":"10:25","type":"跟刀手術","vendorId":"57f4cbb05088","personId":"e2d2b175fc3a","dept":"泌尿科","doctor":"王炯珵","surgery":"RIRS","note":"","hasLic":"否"},{"id":"2ff7b235f50b","date":"2026-05-08","timeIn":"07:57","timeOut":"11:46","type":"跟刀手術","vendorId":"57f4cbb05088","personId":"790663df349c","dept":"泌尿科","doctor":"王炯珵","surgery":"RIRS","note":"","hasLic":"否"},{"id":"b7678f1afb02","date":"2026-05-08","timeIn":"21:16","timeOut":"02:29","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"吳長晉","surgery":"Peid","note":"","hasLic":"是"},{"id":"913cb76d0d29","date":"2026-05-08","timeIn":"21:16","timeOut":"22:20","type":"跟刀手術","vendorId":"3c00747e49f6","personId":"5e54ab417a75","dept":"骨科","doctor":"林冠宇","surgery":"ORIF","note":"","hasLic":"是"},{"id":"3045904b12fa","date":"2026-05-08","timeIn":"16:37","timeOut":"18:27","type":"跟刀手術","vendorId":"899cc09c1006","personId":"7723a2a9cb68","dept":"乳房外科","doctor":"黃星華","surgery":"乳房切除","note":"","hasLic":"否"},{"id":"39453330a715","date":"2026-05-08","timeIn":"16:37","timeOut":"18:27","type":"跟刀手術","vendorId":"899cc09c1006","personId":"1c5aca38f807","dept":"乳房外科","doctor":"黃星華","surgery":"乳房切除","note":"","hasLic":"是"},{"id":"2c40df948ffd","date":"2026-05-08","timeIn":"14:30","timeOut":"15:12","type":"跟刀手術","vendorId":"b57bc4d7ff73","personId":"fb54e1f5e82c","dept":"乳房外科","doctor":"黃星華","surgery":"Breast","note":"","hasLic":"是"},{"id":"2d1fffb34d61","date":"2026-05-08","timeIn":"09:41","timeOut":"11:16","type":"維修保養","vendorId":"ffa73d53ad33","personId":"e365e4a3d70e","dept":"開刀房共用設備","doctor":"","surgery":"","note":"","hasLic":"否"},{"id":"f7eedeb37c66","date":"2026-05-08","timeIn":"08:32","timeOut":"11:45","type":"跟刀手術","vendorId":"2811885b4f6a","personId":"763c90067659","dept":"泌尿科","doctor":"王炯程","surgery":"Bph","note":"","hasLic":"是"},{"id":"422fd9a69866","date":"2026-05-07","timeIn":"15:58","timeOut":"18:59","type":"跟刀手術","vendorId":"e16ce10d7d55","personId":"b20dfc3200b3","dept":"心臟外科","doctor":"張雲媛","surgery":"Paod","note":"","hasLic":"是"},{"id":"1198c46be1c5","date":"2026-05-07","timeIn":"15:54","timeOut":"17:17","type":"維修保養","vendorId":"a0c7a4affdee","personId":"23f69d1d8f0b","dept":"泌尿科","doctor":"","surgery":"","note":"銩雷射","hasLic":"是"},{"id":"aa23bb2acb58","date":"2026-05-07","timeIn":"15:24","timeOut":"16:52","type":"跟刀手術","vendorId":"81799b5fc3b4","personId":"3275cbead9da","dept":"上課","doctor":"無","surgery":"Port a","note":"","hasLic":"是"},{"id":"6f2dc549a26b","date":"2026-05-07","timeIn":"15:24","timeOut":"16:52","type":"跟刀手術","vendorId":"81799b5fc3b4","personId":"6d3112e708ff","dept":"上課","doctor":"無","surgery":"無","note":"","hasLic":"是"},{"id":"fd75325ad51d","date":"2026-05-07","timeIn":"13:54","timeOut":"17:35","type":"跟刀手術","vendorId":"f9523825b1b0","personId":"20eba908958f","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"0fdc7fb58036","date":"2026-05-07","timeIn":"12:53","timeOut":"14:27","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"1fe528721890","date":"2026-05-07","timeIn":"12:31","timeOut":"14:20","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"賴昆鴻","surgery":"Bipolar","note":"","hasLic":"否"},{"id":"08696b317579","date":"2026-05-07","timeIn":"10:30","timeOut":"11:53","type":"跟刀手術","vendorId":"f2b75bd86c87","personId":"a238af6beac1","dept":"泌尿科","doctor":"柯智羣","surgery":"達文西攝護腺癌切除","note":"","hasLic":"是"},{"id":"1fef7c2f7abf","date":"2026-05-06","timeIn":"21:05","timeOut":"22:14","type":"跟刀手術","vendorId":"f9523825b1b0","personId":"20eba908958f","dept":"骨科","doctor":"賴昆鴻","surgery":"ORIF","note":"","hasLic":"是"},{"id":"0c940ebaeb5f","date":"2026-05-06","timeIn":"14:36","timeOut":"16:24","type":"跟刀手術","vendorId":"02fed8a0e4c6","personId":"51a43ba8e64f","dept":"骨科","doctor":"吳長晉","surgery":"Orif","note":"","hasLic":"是"},{"id":"744f8860761a","date":"2026-05-06","timeIn":"12:19","timeOut":"14:41","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"TKR","note":"","hasLic":"否"},{"id":"00bccc69e235","date":"2026-05-06","timeIn":"11:47","timeOut":"12:07","type":"跟刀手術","vendorId":"d4de0a6b8cd9","personId":"b84026970bb4","dept":"泌尿科","doctor":"柯智群","surgery":"攝護腺切除","note":"","hasLic":"是"},{"id":"2af2006eb6a2","date":"2026-05-06","timeIn":"11:32","timeOut":"16:34","type":"跟刀手術","vendorId":"d2ff34f7e70d","personId":"eb9824b0b494","dept":"眼科","doctor":"蘇桓誼","surgery":"Z8","note":"","hasLic":"是"},{"id":"abe4470cca79","date":"2026-05-06","timeIn":"11:31","timeOut":"16:34","type":"跟刀手術","vendorId":"d2ff34f7e70d","personId":"0ed2f0bf663d","dept":"眼科","doctor":"蘇桓誼","surgery":"FLACS","note":"","hasLic":"否"},{"id":"eb015de4f9df","date":"2026-05-06","timeIn":"10:53","timeOut":"13:14","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"姜志勇","surgery":"PEID","note":"","hasLic":"是"},{"id":"8d6ab0d4ff4d","date":"2026-05-06","timeIn":"10:30","timeOut":"10:50","type":"跟刀手術","vendorId":"f2b75bd86c87","personId":"a238af6beac1","dept":"泌尿科","doctor":"柯智羣","surgery":"達文西攝護腺","note":"","hasLic":"是"},{"id":"41b8b1a3d42a","date":"2026-05-06","timeIn":"10:22","timeOut":"11:31","type":"維修保養","vendorId":"846c5bc2f732","personId":"caf804fd6718","dept":"骨科","doctor":"","surgery":"","note":"盤點骨科耗材","hasLic":"是"},{"id":"ce598761edd0","date":"2026-05-06","timeIn":"10:07","timeOut":"18:16","type":"跟刀手術","vendorId":"65f3beed6eab","personId":"ebc5d33cb19d","dept":"神經外科","doctor":"邱","surgery":"Mis","note":"","hasLic":"否"},{"id":"05deb06363b8","date":"2026-05-06","timeIn":"09:41","timeOut":"12:08","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"吳長晉","surgery":"RCT","note":"","hasLic":"是"},{"id":"3f6f6e7b12c8","date":"2026-05-06","timeIn":"09:37","timeOut":"11:28","type":"跟刀手術","vendorId":"899cc09c1006","personId":"7723a2a9cb68","dept":"婦產科","doctor":"徐靖","surgery":"婦癌","note":"","hasLic":"否"},{"id":"312352a09f44","date":"2026-05-06","timeIn":"09:37","timeOut":"11:29","type":"跟刀手術","vendorId":"899cc09c1006","personId":"1c5aca38f807","dept":"婦產科","doctor":"徐靖","surgery":"婦癌","note":"","hasLic":"否"},{"id":"9bf2fde523be","date":"2026-05-06","timeIn":"09:11","timeOut":"16:19","type":"跟刀手術","vendorId":"61f7d7543bc3","personId":"73a1ae2dd502","dept":"神經外科","doctor":"邱建才","surgery":"L-spine","note":"","hasLic":"是"},{"id":"c157d8b31ded","date":"2026-05-06","timeIn":"08:51","timeOut":"10:07","type":"跟刀手術","vendorId":"d43ebec5e2bd","personId":"7289fb4450ee","dept":"神經外科","doctor":"邱建才","surgery":"L spine","note":"","hasLic":"是"},{"id":"1b438592d529","date":"2026-05-05","timeIn":"07:53","timeOut":"18:12","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"水泥","note":"","hasLic":"是"},{"id":"802351562710","date":"2026-05-05","timeIn":"07:49","timeOut":"18:09","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"ad44e0eaf877","dept":"神經外科","doctor":"邱建才","surgery":"水泥","note":"","hasLic":"是"},{"id":"f78d42bc1b72","date":"2026-05-05","timeIn":"16:51","timeOut":"18:38","type":"跟刀手術","vendorId":"8ba33fdc8eb7","personId":"887e85a9387a","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"fe5744a9ad68","date":"2026-05-05","timeIn":"15:00","timeOut":"14:52","type":"跟刀手術","vendorId":"655bd0eb67c0","personId":"bdb3e16de4b2","dept":"骨科","doctor":"許立和","surgery":"tkr","note":"","hasLic":"否"},{"id":"06737cd55476","date":"2026-05-05","timeIn":"13:34","timeOut":"16:57","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"施胤全","surgery":"RCT","note":"","hasLic":"是"},{"id":"9b14cedcd2de","date":"2026-05-05","timeIn":"13:32","timeOut":"15:13","type":"跟刀手術","vendorId":"4febb5101a6d","personId":"dd968387ffbf","dept":"骨科","doctor":"許立和","surgery":"L-spine","note":"","hasLic":"否"},{"id":"2307ee98bd6a","date":"2026-05-05","timeIn":"10:14","timeOut":"13:52","type":"維修保養","vendorId":"ffa73d53ad33","personId":"e365e4a3d70e","dept":"開刀房共用設備","doctor":"","surgery":"","note":"定位系統","hasLic":"否"},{"id":"97f51a6e24c3","date":"2026-05-05","timeIn":"10:12","timeOut":"13:52","type":"維修保養","vendorId":"ffa73d53ad33","personId":"335d35d59579","dept":"開刀房共用設備","doctor":"","surgery":"","note":"定位系統","hasLic":"否"},{"id":"897c9f4d2cfc","date":"2026-05-05","timeIn":"10:12","timeOut":"13:52","type":"維修保養","vendorId":"ffa73d53ad33","personId":"e64b4f7e1693","dept":"開刀房共用設備","doctor":"","surgery":"","note":"定位系統","hasLic":"否"},{"id":"ee9b163467b4","date":"2026-05-05","timeIn":"09:35","timeOut":"12:49","type":"跟刀手術","vendorId":"a0c7a4affdee","personId":"23f69d1d8f0b","dept":"泌尿科","doctor":"陳建志","surgery":"RIRS","note":"","hasLic":"是"},{"id":"0f7acbbc4336","date":"2026-05-05","timeIn":"08:45","timeOut":"16:58","type":"跟刀手術","vendorId":"65751aaaf596","personId":"592f347be96b","dept":"大腸直腸外科","doctor":"楊純豪","surgery":"LAR","note":"","hasLic":"是"},{"id":"6fc0ae9703f8","date":"2026-05-05","timeIn":"08:46","timeOut":"16:57","type":"跟刀手術","vendorId":"d2ff34f7e70d","personId":"648ae64c46bf","dept":"眼科","doctor":"江怡慧","surgery":"白內障","note":"","hasLic":"是"},{"id":"e65c132d5dd9","date":"2026-05-05","timeIn":"08:28","timeOut":"13:07","type":"跟刀手術","vendorId":"deef13128d15","personId":"c362167380b2","dept":"泌尿科","doctor":"吳昀叡","surgery":"RIRS","note":"","hasLic":"是"},{"id":"730bb38749dd","date":"2026-05-04","timeIn":"20:22","timeOut":"22:31","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"7a7ff6f6a965","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"cca1ff781571","date":"2026-05-04","timeIn":"15:53","timeOut":"16:27","type":"維修保養","vendorId":"2811885b4f6a","personId":"67d8b5651aa1","dept":"泌尿科","doctor":"","surgery":"","note":"鈥鐳射","hasLic":"是"},{"id":"0044d629b77f","date":"2026-05-04","timeIn":"15:41","timeOut":"18:35","type":"維修保養","vendorId":"d2ff34f7e70d","personId":"fe9eecbc86b1","dept":"眼科","doctor":"","surgery":"","note":"Z8飛秒","hasLic":"否"},{"id":"a2281a7e19dd","date":"2026-05-04","timeIn":"14:24","timeOut":"15:51","type":"跟刀手術","vendorId":"f9523825b1b0","personId":"20eba908958f","dept":"骨科","doctor":"施胤全","surgery":"ORIF","note":"","hasLic":"是"},{"id":"909d5bbdd41e","date":"2026-05-04","timeIn":"13:02","timeOut":"15:18","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"b5323f6c200f","dept":"其他","doctor":"許立和","surgery":"Peid","note":"","hasLic":"否"},{"id":"a5d17c28888f","date":"2026-05-04","timeIn":"12:20","timeOut":"15:18","type":"跟刀手術","vendorId":"b6ab4e43f34a","personId":"cdee8f7e5338","dept":"骨科","doctor":"吳長晉","surgery":"PEID","note":"","hasLic":"是"},{"id":"d637e7738fa5","date":"2026-05-04","timeIn":"11:46","timeOut":"15:18","type":"跟刀手術","vendorId":"63a83504643a","personId":"11f70a44ee5b","dept":"骨科","doctor":"施胤全","surgery":"RCT","note":"","hasLic":"是"},{"id":"b73ebbc8a423","date":"2026-05-04","timeIn":"10:46","timeOut":"11:53","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"8742f4bbeaa7","dept":"骨科","doctor":"黃昶昱","surgery":"Orif","note":"","hasLic":"否"},{"id":"1943b88110e8","date":"2026-05-04","timeIn":"10:16","timeOut":"11:46","type":"跟刀手術","vendorId":"440fa1e5da0a","personId":"c8c46283c77c","dept":"泌尿科","doctor":"王炯珵","surgery":"金屬支架置放","note":"","hasLic":"是"},{"id":"e6eaa2e8882b","date":"2026-05-04","timeIn":"09:30","timeOut":"17:07","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"TKR","note":"","hasLic":"否"},{"id":"7b00e5cd3198","date":"2026-05-03","timeIn":"07:47","timeOut":"12:07","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"神經外科","doctor":"邱建才","surgery":"打釘","note":"","hasLic":"是"},{"id":"9ec064ecdd83","date":"2026-05-02","timeIn":"12:25","timeOut":"14:37","type":"跟刀手術","vendorId":"deef13128d15","personId":"1aadd7a4ba6f","dept":"泌尿科","doctor":"陳柏誠","surgery":"RIRS","note":"","hasLic":"是"},{"id":"94892fef4987","date":"2026-05-02","timeIn":"10:31","timeOut":"13:04","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"賴昆鴻","surgery":"Bipolar","note":"","hasLic":"否"},{"id":"d00e1291c999","date":"2026-05-02","timeIn":"08:36","timeOut":"10:22","type":"跟刀手術","vendorId":"1b4b032a6e3e","personId":"cae1d006866d","dept":"骨科","doctor":"姜志勇","surgery":"Bipolar","note":"","hasLic":"是"},{"id":"5adef61f03c5","date":"2026-05-01","timeIn":"07:57","timeOut":"09:41","type":"跟刀手術","vendorId":"2811885b4f6a","personId":"afae3c16b42f","dept":"泌尿科","doctor":"王炯珵","surgery":"TURP Laser","note":"","hasLic":"是"},{"id":"e253814034da","date":"2026-05-01","timeIn":"21:42","timeOut":"23:12","type":"跟刀手術","vendorId":"99c2d4e26f5f","personId":"57af2e01ea5a","dept":"骨科","doctor":"吳長晉","surgery":"水泥","note":"","hasLic":"是"},{"id":"ecd9299e2f79","date":"2026-05-01","timeIn":"12:49","timeOut":"14:45","type":"跟刀手術","vendorId":"846c5bc2f732","personId":"5092ef3aa0b3","dept":"骨科","doctor":"林冠宇","surgery":"ORIF","note":"","hasLic":"是"},{"id":"160cd6210b03","date":"2026-05-01","timeIn":"08:45","timeOut":"14:24","type":"跟刀手術","vendorId":"b4ecaccd521f","personId":"ef129fdbc1af","dept":"骨科","doctor":"吳長晉","surgery":"Bipolar","note":"","hasLic":"否"},{"id":"8a1808609fc7","date":"2026-05-01","timeIn":"08:15","timeOut":"10:04","type":"跟刀手術","vendorId":"44d30e6e558b","personId":"0456a2e9621d","dept":"骨科","doctor":"黃昶昱","surgery":"Orif","note":"","hasLic":"否"},{"id":"a68993b73cba","date":"2026-05-01","timeIn":"08:18","timeOut":"10:04","type":"跟刀手術","vendorId":"6de88efc24ec","personId":"51cbb823d310","dept":"骨科","doctor":"黃昶昱","surgery":"oRIF","note":"","hasLic":"否"}]};
+  save();
+}
+
+const TITLES={dashboard:['儀表板','2026年4–5月總覽'],records:['進場記錄','月份明細'],vendors:['廠商管理','廠商資料庫'],persons:['人員管理','人員資料庫'],license:['證照追蹤','到期提醒'],analysis:['分析報表','持照率與未持照分析']};
+
+function goPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+  const[t,s]=TITLES[id]||[id,''];
+  document.getElementById('topbar-title').textContent=t;
+  document.getElementById('topbar-sub').textContent=s;
+  document.getElementById('topbar-right').textContent=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+  if(id==='dashboard')renderDashboard();
+  if(id==='records'){fillVSel('r-vendor');populateMonthFilter();renderRecords();}
+  if(id==='vendors')renderVendors();
+  if(id==='persons'){fillVSel('p-vendor');renderPersons();}
+  if(id==='license')renderLicense();
+  if(id==='analysis')renderAnalysis('vendor-lic');
+}
+
+function vName(id){const v=DB.vendors.find(x=>x.id===id);return v?v.name:'—';}
+function pName(id){const p=DB.persons.find(x=>x.id===id);return p?p.name:'—';}
+function pRecs(id){return DB.records.filter(r=>r.personId===id).length;}
+
+function fillVSel(sid){
+  const sel=document.getElementById(sid),cur=sel.value;
+  sel.innerHTML='<option value="">-- 選擇廠商 --</option>';
+  [...DB.vendors].sort((a,b)=>a.name.localeCompare(b.name,'zh')).forEach(v=>{sel.innerHTML+=`<option value="${v.id}">${v.name}</option>`;});
+  if(cur)sel.value=cur;
+}
+function updatePersonSel(){
+  const vid=document.getElementById('r-vendor').value,sel=document.getElementById('r-person');
+  sel.innerHTML='<option value="">-- 選擇人員 --</option>';
+  DB.persons.filter(p=>p.vendorId===vid).forEach(p=>{sel.innerHTML+=`<option value="${p.id}">${p.name}${p.hasLic==='否'?' ⚠':''}`;});
+}
+function populateMonthFilter(){
+  const sel=document.getElementById('rec-fm'),cur=sel.value;
+  const months=[...new Set(DB.records.map(r=>r.date.slice(0,7)))].sort().reverse();
+  sel.innerHTML='<option value="">全部月份</option>';
+  months.forEach(m=>{sel.innerHTML+=`<option value="${m}">${m}</option>`;});
+  if(cur)sel.value=cur;
+}
+
+function getLicStat(p){
+  if(p.hasLic!=='是')return{label:'未持照',cls:'pill-no',key:'none'};
+  if(!p.licExp)return{label:'有效',cls:'pill-ok',key:'ok'};
+  const diff=Math.ceil((new Date(p.licExp)-new Date())/86400000);
+  if(diff<0)return{label:`到期${Math.abs(diff)}天`,cls:'pill-no',key:'expired'};
+  if(diff<=30)return{label:`${diff}天到期`,cls:'pill-warn',key:'soon'};
+  return{label:'有效',cls:'pill-ok',key:'ok'};
+}
+function getAlerts(){
+  const soon=new Date();soon.setDate(soon.getDate()+30);
+  return DB.persons.filter(p=>p.licExp&&new Date(p.licExp)<=soon).map(p=>{
+    const diff=Math.ceil((new Date(p.licExp)-new Date())/86400000);
+    return{name:p.name,vendor:vName(p.vendorId),msg:diff<0?`已到期${Math.abs(diff)}天`:`${diff}天後到期`};
+  });
+}
+function destroyChart(k){if(charts[k]){charts[k].destroy();delete charts[k];}}
+
+// ── 儀表板 ──
+function renderDashboard(){
+  const total=DB.records.length,persons=DB.persons.length;
+  const licOk=DB.persons.filter(p=>p.hasLic==='是').length,noLic=persons-licOk;
+  const rate=persons?Math.round(licOk/persons*100):0;
+  const rc=rate>=80?'c-ok':rate>=60?'c-warn':'c-danger';
+  document.getElementById('dash-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">總進場筆數</div><div class="metric-val c-accent">${total}</div><div class="metric-sub">4–5月合計</div></div>
+    <div class="metric"><div class="metric-label">廠商家數</div><div class="metric-val">${DB.vendors.length}</div></div>
+    <div class="metric"><div class="metric-label">人員持照率</div><div class="metric-val ${rc}">${rate}%</div><div class="metric-sub">${persons}人</div></div>
+    <div class="metric"><div class="metric-label">未持照人員</div><div class="metric-val c-danger">${noLic}</div><div class="metric-sub">需追蹤</div></div>`;
+  const alerts=getAlerts();
+  document.getElementById('dash-alert').innerHTML=alerts.length?
+    `<div class="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <div><strong>證照提醒：</strong>${alerts.map(a=>`${a.vendor} ${a.name}（${a.msg}）`).join('　·　')}</div></div>`:'';
+
+  // 進場類型
+  const op=DB.records.filter(r=>r.type==='跟刀手術').length,mt=total-op;
+  destroyChart('type');
+  charts['type']=new Chart(document.getElementById('ch-type'),{type:'doughnut',
+    data:{labels:[`跟刀手術 (${op})`,`維修保養 (${mt})`],datasets:[{data:[op,mt],backgroundColor:['#00C4B4','#F59E0B'],borderWidth:2,borderColor:'#152231'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:11,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<5)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=5;}}}}});
+
+  // 各月持照率
+  const map={};
+  DB.records.forEach(r=>{const m=r.date.slice(0,7);if(!map[m])map[m]={t:0,ok:0};map[m].t++;if(r.hasLic==='是')map[m].ok++;});
+  const months=Object.entries(map).sort();
+  destroyChart('lic');
+  charts['lic']=new Chart(document.getElementById('ch-lic'),{type:'bar',
+    data:{labels:months.map(([m])=>m),datasets:[{data:months.map(([,v])=>v.t?Math.round(v.ok/v.t*100):0),backgroundColor:months.map(([,v])=>{const r=v.t?Math.round(v.ok/v.t*100):0;return r>=80?'rgba(16,185,129,0.7)':r>=60?'rgba(245,158,11,0.7)':'rgba(239,68,68,0.7)';}),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#8FA4BA'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'},min:0,max:100}}}});
+
+  // 科別圓餅
+  const dmap={};
+  DB.records.filter(r=>r.dept&&r.type==='跟刀手術').forEach(r=>{dmap[r.dept]=(dmap[r.dept]||0)+1;});
+  const depts=Object.entries(dmap).sort((a,b)=>b[1]-a[1]);
+  destroyChart('dept');
+  charts['dept']=new Chart(document.getElementById('ch-dept'),{type:'doughnut',
+    data:{labels:depts.map(([d,c])=>`${d}(${c})`),datasets:[{data:depts.map(([,c])=>c),backgroundColor:['#00C4B4','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316'],borderWidth:2,borderColor:'#152231'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+
+  // 廠商進場 Top 10 橫條
+  const vmap={};
+  DB.records.forEach(r=>{vmap[r.vendorId]=(vmap[r.vendorId]||0)+1;});
+  const top10=Object.entries(vmap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const maxV=top10[0]?top10[0][1]:1;
+  document.getElementById('vendor-top-bars').innerHTML=top10.map(([vid,cnt])=>
+    `<div class="bar-row"><div class="bar-label" title="${vName(vid)}">${vName(vid)}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(cnt/maxV*100)}%;background:var(--accent)"></div></div><div class="bar-val">${cnt}</div></div>`
+  ).join('');
+}
+
+// ── 進場記錄（月份分組）──
+function addRecord(){
+  const vid=document.getElementById('r-vendor').value,pid=document.getElementById('r-person').value;
+  if(!vid||!pid){alert('請選擇廠商與人員');return;}
+  const p=DB.persons.find(x=>x.id===pid);
+  DB.records.push({id:uid(),date:document.getElementById('r-date').value||new Date().toISOString().slice(0,10),
+    timeIn:document.getElementById('r-in').value,timeOut:document.getElementById('r-out').value,
+    type:document.getElementById('r-type').value,vendorId:vid,personId:pid,
+    dept:document.getElementById('r-dept').value,doctor:document.getElementById('r-doctor').value,
+    surgery:document.getElementById('r-surgery').value,note:document.getElementById('r-note').value,
+    hasLic:p?p.hasLic:'否'});
+  save();populateMonthFilter();renderRecords();
+  ['r-in','r-out','r-doctor','r-surgery','r-note'].forEach(id=>document.getElementById(id).value='');
+}
+function delRecord(id){if(!confirm('確定刪除？'))return;DB.records=DB.records.filter(r=>r.id!==id);save();renderRecords();}
+
+function renderRecords(){
+  const q=document.getElementById('rec-search').value.toLowerCase();
+  const fm=document.getElementById('rec-fm').value;
+  const ft=document.getElementById('rec-ft').value;
+  const fl=document.getElementById('rec-fl').value;
+
+  let list=[...DB.records].sort((a,b)=>b.date.localeCompare(a.date)||(b.timeIn||'').localeCompare(a.timeIn||''));
+  if(q)list=list.filter(r=>vName(r.vendorId).toLowerCase().includes(q)||pName(r.personId).toLowerCase().includes(q)||(r.surgery||'').toLowerCase().includes(q)||(r.dept||'').includes(q));
+  if(ft)list=list.filter(r=>r.type===ft);
+  if(fl)list=list.filter(r=>r.hasLic===fl);
+
+  document.getElementById('rec-count').textContent=`${list.length} 筆`;
+
+  // 按月份分組
+  const groups={};
+  list.forEach(r=>{const m=r.date.slice(0,7);if(!groups[m])groups[m]=[];groups[m].push(r);});
+
+  // 若有月份篩選，只顯示那個月
+  let monthKeys=Object.keys(groups).sort().reverse();
+  if(fm)monthKeys=monthKeys.filter(m=>m===fm);
+
+  const container=document.getElementById('rec-months-container');
+  if(!monthKeys.length){container.innerHTML='<div class="empty-state">無符合記錄</div>';return;}
+
+  container.innerHTML=monthKeys.map(m=>{
+    const rows=groups[m];
+    const okCnt=rows.filter(r=>r.hasLic==='是').length;
+    const noCnt=rows.length-okCnt;
+    const mLabel={'2026-04':'2026年4月','2026-05':'2026年5月'}[m]||m;
+    return`<div class="month-section">
+      <div class="month-header" onclick="toggleMonth('${m}')">
+        <span class="month-header-title">${mLabel}</span>
+        <span class="month-header-stats">
+          <span>${rows.length} 筆</span>
+          <span style="color:var(--ok)">持照 ${okCnt}</span>
+          <span style="color:var(--danger)">未持照 ${noCnt}</span>
+        </span>
+        <span class="month-header-arrow open" id="arrow-${m}">▶</span>
+      </div>
+      <div class="month-body" id="month-body-${m}">
+        <table><thead><tr>
+          <th style="width:90px">日期</th><th style="width:130px">廠商</th>
+          <th style="width:75px">姓名</th><th style="width:88px">類型</th>
+          <th style="width:72px">科別</th><th style="width:85px">進/離場</th>
+          <th style="width:90px">術式</th><th style="width:62px">證照</th>
+          <th style="width:52px">操作</th>
+        </tr></thead><tbody>
+        ${rows.map(r=>`<tr>
+          <td>${r.date}</td>
+          <td title="${vName(r.vendorId)}">${vName(r.vendorId)}</td>
+          <td>${pName(r.personId)}</td>
+          <td><span class="pill ${r.type==='跟刀手術'?'pill-blue':'pill-gray'}">${r.type}</span></td>
+          <td>${r.dept||'—'}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${r.timeIn||'—'}${r.timeOut?'–'+r.timeOut:''}</td>
+          <td title="${r.surgery||''}">${r.surgery||'—'}</td>
+          <td><span class="pill ${r.hasLic==='是'?'pill-ok':'pill-no'}">${r.hasLic}</span></td>
+          <td><button class="btn-sm-danger" onclick="delRecord('${r.id}')">刪除</button></td>
+        </tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMonth(m){
+  const body=document.getElementById('month-body-'+m);
+  const arrow=document.getElementById('arrow-'+m);
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  arrow.classList.toggle('open',!isOpen);
+}
+
+// ── 廠商 ──
+function addVendor(){const name=document.getElementById('v-name').value.trim();if(!name){alert('請輸入廠商名稱');return;}DB.vendors.push({id:uid(),name,brand:document.getElementById('v-brand').value,contact:document.getElementById('v-contact').value,phone:document.getElementById('v-phone').value});['v-name','v-brand','v-contact','v-phone'].forEach(id=>document.getElementById(id).value='');save();renderVendors();fillVSel('r-vendor');fillVSel('p-vendor');}
+function delVendor(id){if(!confirm('確定刪除廠商？'))return;DB.vendors=DB.vendors.filter(v=>v.id!==id);DB.persons=DB.persons.filter(p=>p.vendorId!==id);DB.records=DB.records.filter(r=>r.vendorId!==id);save();renderVendors();fillVSel('r-vendor');fillVSel('p-vendor');}
+function renderVendors(){
+  const q=document.getElementById('v-search').value.toLowerCase();
+  let list=[...DB.vendors].sort((a,b)=>a.name.localeCompare(b.name,'zh'));
+  if(q)list=list.filter(v=>v.name.toLowerCase().includes(q)||(v.brand||'').toLowerCase().includes(q));
+  document.getElementById('v-count').textContent=`${list.length} 家`;
+  document.getElementById('v-body').innerHTML=list.map(v=>{
+    const pc=DB.persons.filter(p=>p.vendorId===v.id).length,rc=DB.records.filter(r=>r.vendorId===v.id).length;
+    const ok=DB.persons.filter(p=>p.vendorId===v.id&&p.hasLic==='是').length;
+    const rate=pc?Math.round(ok/pc*100):null;
+    const rc2=rate===null?'—':`<span style="color:${rate>=80?'var(--ok)':rate>=50?'var(--warn)':'var(--danger)'};font-weight:500">${rate}%</span>`;
+    return`<tr><td style="font-weight:500">${v.name}</td><td>${v.brand||'—'}</td><td>${v.contact||'—'}</td><td style="font-family:var(--mono);font-size:11px">${v.phone||'—'}</td><td style="text-align:center">${pc}</td><td style="text-align:center">${rc}</td><td style="text-align:center">${rc2}</td><td><button class="btn-sm-danger" onclick="delVendor('${v.id}')">刪除</button></td></tr>`;
+  }).join('')||'<tr><td colspan="8" class="empty-state">尚無廠商</td></tr>';
+}
+
+// ── 人員 ──
+function addPerson(){const vid=document.getElementById('p-vendor').value,name=document.getElementById('p-name').value.trim();if(!vid||!name){alert('請選擇廠商並輸入姓名');return;}DB.persons.push({id:uid(),vendorId:vid,name,phone:document.getElementById('p-phone').value,hasLic:document.getElementById('p-lic').value,licNo:document.getElementById('p-licno').value,licExp:document.getElementById('p-licexp').value,note:document.getElementById('p-note').value});['p-name','p-phone','p-licno','p-licexp','p-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('p-lic').value='否';save();renderPersons();}
+function delPerson(id){if(!confirm('確定刪除？'))return;DB.persons=DB.persons.filter(p=>p.id!==id);DB.records=DB.records.filter(r=>r.personId!==id);save();renderPersons();}
+function toggleLic(id){const p=DB.persons.find(x=>x.id===id);if(p){p.hasLic=p.hasLic==='是'?'否':'是';save();renderPersons();renderLicense();}}
+function renderPersons(){
+  const q=document.getElementById('p-search').value.toLowerCase(),fl=document.getElementById('p-fl').value;
+  let list=[...DB.persons].sort((a,b)=>vName(a.vendorId).localeCompare(vName(b.vendorId),'zh'));
+  if(q)list=list.filter(p=>p.name.toLowerCase().includes(q)||vName(p.vendorId).toLowerCase().includes(q));
+  if(fl)list=list.filter(p=>p.hasLic===fl);
+  document.getElementById('p-count').textContent=`${list.length} 人`;
+  document.getElementById('p-body').innerHTML=list.map(p=>{const st=getLicStat(p);return`<tr><td title="${vName(p.vendorId)}">${vName(p.vendorId)}</td><td style="font-weight:500">${p.name}</td><td style="font-family:var(--mono);font-size:11px">${p.phone||'—'}</td><td><span class="pill ${p.hasLic==='是'?'pill-ok':'pill-no'}" style="cursor:pointer" onclick="toggleLic('${p.id}')" title="點擊切換">${p.hasLic}</span></td><td style="font-family:var(--mono);font-size:11px">${p.licNo||'—'}</td><td>${p.licExp?`<span class="pill ${st.key==='expired'?'pill-no':st.key==='soon'?'pill-warn':'pill-gray'}">${p.licExp}</span>`:'—'}</td><td style="text-align:center">${pRecs(p.id)}</td><td><button class="btn-sm-danger" onclick="delPerson('${p.id}')">刪除</button></td></tr>`;}).join('')||'<tr><td colspan="8" class="empty-state">尚無人員</td></tr>';
+}
+
+// ── 證照追蹤 ──
+function renderLicense(){
+  const q=document.getElementById('lf-search').value.toLowerCase(),fs=document.getElementById('lf-status').value;
+  let list=[...DB.persons].sort((a,b)=>vName(a.vendorId).localeCompare(vName(b.vendorId),'zh'));
+  if(q)list=list.filter(p=>p.name.toLowerCase().includes(q)||vName(p.vendorId).toLowerCase().includes(q));
+  if(fs)list=list.filter(p=>getLicStat(p).key===fs);
+  const total=DB.persons.length,expired=DB.persons.filter(p=>getLicStat(p).key==='expired').length,soon=DB.persons.filter(p=>getLicStat(p).key==='soon').length,noLic=DB.persons.filter(p=>p.hasLic==='否').length;
+  document.getElementById('lic-metrics').innerHTML=`<div class="metric"><div class="metric-label">人員總數</div><div class="metric-val">${total}</div></div><div class="metric"><div class="metric-label">未持照</div><div class="metric-val c-danger">${noLic}</div></div><div class="metric"><div class="metric-label">證照已到期</div><div class="metric-val c-danger">${expired}</div></div><div class="metric"><div class="metric-label">30天內到期</div><div class="metric-val c-warn">${soon}</div></div>`;
+  const alerts=getAlerts();
+  document.getElementById('lic-alert').innerHTML=alerts.length?`<div class="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div>${alerts.map(a=>`<strong>${a.vendor}</strong> ${a.name} — ${a.msg}`).join('　·　')}</div></div>`:'';
+  document.getElementById('lf-count').textContent=`${list.length} 人`;
+  document.getElementById('lic-body').innerHTML=list.map(p=>{const st=getLicStat(p);return`<tr><td title="${vName(p.vendorId)}">${vName(p.vendorId)}</td><td style="font-weight:500">${p.name}</td><td><span class="pill ${p.hasLic==='是'?'pill-ok':'pill-no'}">${p.hasLic}</span></td><td style="font-family:var(--mono);font-size:11px">${p.licNo||'—'}</td><td style="font-family:var(--mono);font-size:11px">${p.licExp||'—'}</td><td><span class="pill ${st.cls}">${st.label}</span></td><td style="text-align:center">${pRecs(p.id)}</td><td><button class="btn-ghost" onclick="toggleLic('${p.id}')" style="font-size:11px;padding:3px 8px">切換</button></td></tr>`;}).join('')||'<tr><td colspan="8" class="empty-state">無符合資料</td></tr>';
+}
+
+// ── 分析報表 ──
+let currentAnalysis='vendor-lic';
+function switchAnalysis(id,el){
+  ['vendor-lic','monthly-lic','nolic-detail','dept-dist','purpose-dist'].forEach(s=>{document.getElementById('analysis-'+s).style.display='none';});
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('analysis-'+id).style.display='block';
+  el.classList.add('active');
+  currentAnalysis=id;
+  renderAnalysis(id);
+}
+function renderAnalysis(id){
+  if(id==='vendor-lic')renderVendorLic();
+  else if(id==='monthly-lic')renderMonthlyLic();
+  else if(id==='nolic-detail')renderNolicDetail();
+  else if(id==='dept-dist')renderDeptDist();
+  else if(id==='purpose-dist')renderPurposeDist();
+}
+
+function renderVendorLic(){
+  const stats=DB.vendors.map(v=>{
+    const ps=DB.persons.filter(p=>p.vendorId===v.id);
+    const ok=ps.filter(p=>p.hasLic==='是').length;
+    const rc=DB.records.filter(r=>r.vendorId===v.id).length;
+    const rate=ps.length?Math.round(ok/ps.length*100):null;
+    return{v,total:ps.length,ok,no:ps.length-ok,rate,rc};
+  }).filter(s=>s.total>0).sort((a,b)=>(b.rate||0)-(a.rate||0));
+  const totalP=DB.persons.length,okP=DB.persons.filter(p=>p.hasLic==='是').length;
+  const fullRate=totalP?Math.round(okP/totalP*100):0;
+  document.getElementById('an-vendor-metrics').innerHTML=`<div class="metric"><div class="metric-label">有人員廠商數</div><div class="metric-val">${stats.length}</div></div><div class="metric"><div class="metric-label">整體持照率</div><div class="metric-val ${fullRate>=80?'c-ok':fullRate>=60?'c-warn':'c-danger'}">${fullRate}%</div></div><div class="metric"><div class="metric-label">持照率0%廠商</div><div class="metric-val c-danger">${stats.filter(s=>s.rate===0).length}</div></div><div class="metric"><div class="metric-label">全員持照廠商</div><div class="metric-val c-ok">${stats.filter(s=>s.rate===100).length}</div></div>`;
+  document.getElementById('vendor-lic-bars').innerHTML=stats.slice(0,12).map(s=>{const color=s.rate>=80?'var(--ok)':s.rate>=50?'var(--warn)':'var(--danger)';return`<div class="bar-row"><div class="bar-label" title="${s.v.name}">${s.v.name}</div><div class="bar-track"><div class="bar-fill" style="width:${s.rate||0}%;background:${color}"></div></div><div class="bar-val" style="color:${color}">${s.rate!==null?s.rate+'%':'—'}</div></div>`;}).join('');
+  destroyChart('vendor-lic');
+  const top10=stats.slice(0,10);
+  charts['vendor-lic']=new Chart(document.getElementById('ch-vendor-lic'),{type:'bar',data:{labels:top10.map(s=>s.v.name),datasets:[{label:'持照',data:top10.map(s=>s.ok),backgroundColor:'rgba(16,185,129,0.7)',stack:'s',borderRadius:3},{label:'未持照',data:top10.map(s=>s.no),backgroundColor:'rgba(239,68,68,0.7)',stack:'s',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8FA4BA',font:{size:11},boxWidth:10}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#8FA4BA',font:{size:10},maxRotation:45}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA',stepSize:1}}}}});
+  document.getElementById('vendor-lic-body').innerHTML=stats.map(s=>{const color=s.rate>=80?'var(--ok)':s.rate>=50?'var(--warn)':'var(--danger)';const badge=s.rate===0?'<span class="pill pill-no">需關注</span>':s.rate===100?'<span class="pill pill-ok">全員持照</span>':s.rate>=80?'<span class="pill pill-ok">良好</span>':'<span class="pill pill-warn">待改善</span>';return`<tr><td style="font-weight:500">${s.v.name}</td><td style="text-align:center">${s.total}</td><td style="text-align:center;color:var(--ok)">${s.ok}</td><td style="text-align:center;color:var(--danger)">${s.no}</td><td style="text-align:center;color:${color};font-weight:500">${s.rate!==null?s.rate+'%':'—'}</td><td style="text-align:center">${s.rc}</td><td>${badge}</td></tr>`;}).join('')||'<tr><td colspan="7" class="empty-state">尚無資料</td></tr>';
+}
+
+function renderMonthlyLic(){
+  const map={};
+  DB.records.forEach(r=>{const m=r.date.slice(0,7);if(!map[m])map[m]={t:0,ok:0,no:0};map[m].t++;if(r.hasLic==='是')map[m].ok++;else map[m].no++;});
+  const months=Object.entries(map).sort();
+  destroyChart('monthly-trend');
+  charts['monthly-trend']=new Chart(document.getElementById('ch-monthly-trend'),{type:'line',data:{labels:months.map(([m])=>m),datasets:[{label:'持照率(%)',data:months.map(([,v])=>v.t?Math.round(v.ok/v.t*100):0),borderColor:'#00C4B4',backgroundColor:'rgba(0,196,180,0.1)',tension:0.4,fill:true,pointBackgroundColor:'#00C4B4',pointRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8FA4BA',font:{size:11}}}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'},min:0,max:100}}}});
+  destroyChart('monthly-vol');
+  charts['monthly-vol']=new Chart(document.getElementById('ch-monthly-vol'),{type:'bar',data:{labels:months.map(([m])=>m),datasets:[{label:'進場筆數',data:months.map(([,v])=>v.t),backgroundColor:'rgba(0,196,180,0.6)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#8FA4BA'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'}}}}});
+  destroyChart('monthly-nolic');
+  charts['monthly-nolic']=new Chart(document.getElementById('ch-monthly-nolic'),{type:'bar',data:{labels:months.map(([m])=>m),datasets:[{label:'未持照筆數',data:months.map(([,v])=>v.no),backgroundColor:'rgba(239,68,68,0.6)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#8FA4BA'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'}}}}});
+  const vendorIds=[...new Set(DB.records.map(r=>r.vendorId))];
+  const monthKeys=months.map(([m])=>m);
+  const mx={};vendorIds.forEach(v=>{mx[v]={};monthKeys.forEach(m=>{mx[v][m]={t:0,ok:0};});});
+  DB.records.forEach(r=>{if(mx[r.vendorId]&&mx[r.vendorId][r.date.slice(0,7)]){mx[r.vendorId][r.date.slice(0,7)].t++;if(r.hasLic==='是')mx[r.vendorId][r.date.slice(0,7)].ok++;}});
+  document.getElementById('monthly-matrix-wrap').innerHTML=`<table><thead><tr><th style="width:130px">廠商</th>${monthKeys.map(m=>`<th style="width:80px;text-align:center">${m}</th>`).join('')}</tr></thead><tbody>${vendorIds.map(vid=>`<tr><td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${vName(vid)}">${vName(vid)}</td>${monthKeys.map(m=>{const{t,ok}=mx[vid][m];if(!t)return`<td style="text-align:center;color:var(--text3)">—</td>`;const rate=Math.round(ok/t*100);const col=rate>=80?'var(--ok)':rate>=50?'var(--warn)':'var(--danger)';return`<td style="text-align:center;color:${col};font-weight:500;font-family:var(--mono);font-size:12px">${rate}%</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;
+}
+
+function renderNolicDetail(){
+  const noLicIds=[...new Set(DB.records.filter(r=>r.hasLic==='否').map(r=>r.personId))];
+  const stats=noLicIds.map(pid=>{
+    const p=DB.persons.find(x=>x.id===pid)||{name:pName(pid),vendorId:'',hasLic:'否'};
+    const recs=DB.records.filter(r=>r.personId===pid&&r.hasLic==='否');
+    const months=[...new Set(recs.map(r=>r.date.slice(0,7)))].length;
+    return{pid,p,count:recs.length,depts:[...new Set(recs.map(r=>r.dept).filter(Boolean))],months,type:[...new Set(recs.map(r=>r.type))]};
+  }).sort((a,b)=>b.count-a.count);
+  const noLic=DB.persons.filter(p=>p.hasLic==='否').length,recNoLic=DB.records.filter(r=>r.hasLic==='否').length;
+  document.getElementById('an-nolic-metrics').innerHTML=`<div class="metric"><div class="metric-label">未持照人員數</div><div class="metric-val c-danger">${noLic}</div></div><div class="metric"><div class="metric-label">未持照進場筆數</div><div class="metric-val c-danger">${recNoLic}</div></div><div class="metric"><div class="metric-label">跨月持續未持照</div><div class="metric-val c-warn">${stats.filter(s=>s.months>=2).length}</div><div class="metric-sub">出現≥2月</div></div><div class="metric"><div class="metric-label">最高單人次數</div><div class="metric-val c-warn">${stats[0]?stats[0].count:0}</div></div>`;
+  const maxC=stats[0]?stats[0].count:1;
+  document.getElementById('nolic-bars').innerHTML=stats.slice(0,10).map(s=>{const risk=s.count>=10?'high':s.count>=4?'mid':'low';const color=risk==='high'?'var(--danger)':risk==='mid'?'var(--warn)':'var(--ok)';const lbl=`${vName(s.p.vendorId)} · ${s.p.name||pName(s.pid)}`;return`<div class="bar-row"><div class="bar-label" title="${lbl}">${lbl}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(s.count/maxC*100)}%;background:${color}"></div></div><div class="bar-val" style="color:${color}">${s.count}</div></div>`;}).join('');
+  const dmap={};DB.records.filter(r=>r.hasLic==='否'&&r.dept).forEach(r=>{dmap[r.dept]=(dmap[r.dept]||0)+1;});
+  const depts=Object.entries(dmap).sort((a,b)=>b[1]-a[1]);
+  destroyChart('nolic-dept');
+  charts['nolic-dept']=new Chart(document.getElementById('ch-nolic-dept'),{type:'doughnut',data:{labels:depts.map(([d,c])=>`${d}(${c})`),datasets:[{data:depts.map(([,c])=>c),backgroundColor:['#00C4B4','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316'],borderWidth:2,borderColor:'#152231'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+  document.getElementById('nolic-risk-list').innerHTML=stats.map(s=>{const risk=s.count>=10?'high':s.count>=4?'mid':'low';const rL=risk==='high'?'高':risk==='mid'?'中':'低';return`<div class="risk-card"><div class="risk-badge ${risk}">${rL}</div><div class="risk-info"><div class="risk-name">${s.p.name||pName(s.pid)}</div><div class="risk-vendor">${vName(s.p.vendorId)}</div><div class="risk-meta">${s.count}次　${s.type.join('/')}　${s.depts.slice(0,3).join('·')||'—'}　跨${s.months}月</div></div><div style="flex-shrink:0;text-align:right"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${risk==='high'?'var(--danger)':risk==='mid'?'var(--warn)':'var(--ok)'}">${s.count}</div><div style="font-size:10px;color:var(--text3);font-family:var(--mono)">次</div></div></div>`;}).join('')||'<div class="empty-state">尚無未持照進場記錄</div>';
+}
+
+function renderDeptDist(){
+  const deptRecs=DB.records.filter(r=>r.dept&&r.type==='跟刀手術');
+  const dmap={};deptRecs.forEach(r=>{if(!dmap[r.dept])dmap[r.dept]={t:0,ok:0};dmap[r.dept].t++;if(r.hasLic==='是')dmap[r.dept].ok++;});
+  const depts=Object.entries(dmap).sort((a,b)=>b[1].t-a[1].t);
+  destroyChart('dept-bar');
+  charts['dept-bar']=new Chart(document.getElementById('ch-dept-bar'),{type:'bar',data:{labels:depts.map(([d])=>d),datasets:[{data:depts.map(([,v])=>v.t),backgroundColor:'rgba(0,196,180,0.65)',borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'}},y:{grid:{display:false},ticks:{color:'#8FA4BA'}}}}});
+  document.getElementById('dept-lic-bars').innerHTML=depts.map(([d,v])=>{const rate=Math.round(v.ok/v.t*100);const color=rate>=80?'var(--ok)':rate>=50?'var(--warn)':'var(--danger)';return`<div class="bar-row"><div class="bar-label">${d}</div><div class="bar-track"><div class="bar-fill" style="width:${rate}%;background:${color}"></div></div><div class="bar-val" style="color:${color}">${rate}%</div></div>`;}).join('');
+  const vids=[...new Set(deptRecs.map(r=>r.vendorId))];
+  const dkeys=depts.map(([d])=>d);
+  const mx={};vids.forEach(v=>{mx[v]={};dkeys.forEach(d=>{mx[v][d]=0;});});
+  deptRecs.forEach(r=>{if(mx[r.vendorId])mx[r.vendorId][r.dept]=(mx[r.vendorId][r.dept]||0)+1;});
+  document.getElementById('dept-vendor-wrap').innerHTML=`<table><thead><tr><th style="width:130px">廠商</th>${dkeys.map(d=>`<th style="text-align:center;min-width:60px">${d}</th>`).join('')}</tr></thead><tbody>${vids.map(vid=>`<tr><td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${vName(vid)}</td>${dkeys.map(d=>{const n=mx[vid][d]||0;return`<td style="text-align:center;${n?'color:var(--accent);font-family:var(--mono);font-size:12px':'color:var(--text3)'}">${n||'—'}</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;
+}
+
+
+function renderPurposeDist(){
+  const recs=DB.records;
+  const opRecs=recs.filter(r=>r.type==='跟刀手術');
+  const maintRecs=recs.filter(r=>r.type==='維修保養');
+  const courseRecs=opRecs.filter(r=>r.dept==='上課');
+  const normalOpRecs=opRecs.filter(r=>r.dept!=='上課');
+
+  // metrics
+  document.getElementById('an-purpose-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">總進場筆數</div><div class="metric-val c-accent">${recs.length}</div></div>
+    <div class="metric"><div class="metric-label">跟刀手術</div><div class="metric-val c-ok">${opRecs.length}</div><div class="metric-sub">${recs.length?Math.round(opRecs.length/recs.length*100):0}%</div></div>
+    <div class="metric"><div class="metric-label">維修保養</div><div class="metric-val c-warn">${maintRecs.length}</div><div class="metric-sub">${recs.length?Math.round(maintRecs.length/recs.length*100):0}%</div></div>
+    <div class="metric"><div class="metric-label">上課</div><div class="metric-val" style="color:#8B5CF6">${courseRecs.length}</div><div class="metric-sub">${recs.length?Math.round(courseRecs.length/recs.length*100):0}%</div></div>`;
+
+  const COLORS=['#00C4B4','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316','#A78BFA','#34D399'];
+
+  // 總覽圓餅（跟刀各科 + 維修保養 + 上課）
+  destroyChart('purpose-all');
+  const allMap={};
+  normalOpRecs.forEach(r=>{const k=r.dept||'未填科別';allMap[k]=(allMap[k]||0)+1;});
+  if(maintRecs.length) allMap['維修保養']=maintRecs.length;
+  if(courseRecs.length) allMap['上課']=courseRecs.length;
+  const allEntries=Object.entries(allMap).sort((a,b)=>b[1]-a[1]);
+  charts['purpose-all']=new Chart(document.getElementById('ch-purpose-all'),{type:'doughnut',
+    data:{labels:allEntries.map(([k,v])=>`${k}(${v})`),datasets:[{data:allEntries.map(([,v])=>v),backgroundColor:allEntries.map((_,i)=>COLORS[i%COLORS.length]),borderWidth:2,borderColor:'#152231'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+
+  // 跟刀科別圓餅（含上課）
+  destroyChart('purpose-op');
+  const opMap={};
+  opRecs.forEach(r=>{const k=r.dept||'未填科別';opMap[k]=(opMap[k]||0)+1;});
+  const opEntries=Object.entries(opMap).sort((a,b)=>b[1]-a[1]);
+  charts['purpose-op']=new Chart(document.getElementById('ch-purpose-op'),{type:'doughnut',
+    data:{labels:opEntries.map(([k,v])=>`${k}(${v})`),datasets:[{data:opEntries.map(([,v])=>v),backgroundColor:opEntries.map((_,i)=>COLORS[i%COLORS.length]),borderWidth:2,borderColor:'#152231'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+
+  // 維修保養科別圓餅
+  destroyChart('purpose-maint');
+  const mMap={};
+  maintRecs.forEach(r=>{const k=r.dept||'未分類';mMap[k]=(mMap[k]||0)+1;});
+  const mEntries=Object.entries(mMap).sort((a,b)=>b[1]-a[1]);
+  charts['purpose-maint']=new Chart(document.getElementById('ch-purpose-maint'),{type:'doughnut',
+    data:{labels:mEntries.map(([k,v])=>`${k}(${v})`),datasets:[{data:mEntries.map(([,v])=>v),backgroundColor:mEntries.map((_,i)=>COLORS[i%COLORS.length]),borderWidth:2,borderColor:'#152231'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+
+  // 月份 × 進場目的堆疊橫條圖
+  destroyChart('purpose-monthly');
+  const months=[...new Set(recs.map(r=>r.date.slice(0,7)))].sort();
+  const opByMonth=months.map(m=>recs.filter(r=>r.date.startsWith(m)&&r.type==='跟刀手術'&&r.dept!=='上課').length);
+  const maintByMonth=months.map(m=>recs.filter(r=>r.date.startsWith(m)&&r.type==='維修保養').length);
+  const courseByMonth=months.map(m=>recs.filter(r=>r.date.startsWith(m)&&r.type==='跟刀手術'&&r.dept==='上課').length);
+  charts['purpose-monthly']=new Chart(document.getElementById('ch-purpose-monthly'),{type:'bar',
+    data:{labels:months,datasets:[
+      {label:'跟刀手術',data:opByMonth,backgroundColor:'rgba(0,196,180,0.75)',stack:'s',borderRadius:3},
+      {label:'維修保養',data:maintByMonth,backgroundColor:'rgba(245,158,11,0.75)',stack:'s',borderRadius:3},
+      {label:'上課',data:courseByMonth,backgroundColor:'rgba(139,92,246,0.75)',stack:'s',borderRadius:3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8FA4BA',font:{size:11},boxWidth:10,padding:8}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#8FA4BA'}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'}}}}});
+
+  // 明細表：科別 × 月份
+  const allDepts=[...new Set(recs.map(r=>r.type==='維修保養'?'【維修保養】'+(r.dept?r.dept:''):r.dept||'未填科別'))].sort();
+  // 簡化：跟刀科別（含上課） + 維修保養科別
+  const opDepts=[...new Set(opRecs.map(r=>r.dept||'未填科別'))].sort((a,b)=>{
+    const ca=opRecs.filter(x=>x.dept===a).length,cb=opRecs.filter(x=>x.dept===b).length;return cb-ca;});
+  const mDepts=[...new Set(maintRecs.map(r=>'【維修】'+(r.dept||'未分類')))];
+  const allCols=[...opDepts,...mDepts];
+  const rows=months.map(mo=>{
+    const cells=allCols.map(col=>{
+      if(col.startsWith('【維修】')){
+        const d=col.replace('【維修】','');
+        return maintRecs.filter(r=>r.date.startsWith(mo)&&(r.dept||'未分類')===d).length;
+      } else {
+        return opRecs.filter(r=>r.date.startsWith(mo)&&(r.dept||'未填科別')===col).length;
+      }
+    });
+    return{mo,cells,total:recs.filter(r=>r.date.startsWith(mo)).length};
+  });
+  const colHeaders=allCols.map(c=>`<th style="text-align:center;min-width:58px;font-size:10px">${c}</th>`).join('');
+  const dataRows=rows.map(({mo,cells,total})=>{
+    const mLabel={'2026-04':'2026年4月','2026-05':'2026年5月'}[mo]||mo;
+    return`<tr>
+      <td style="font-weight:500;white-space:nowrap;color:var(--accent);font-family:var(--mono)">${mLabel}</td>
+      ${cells.map(n=>`<td style="text-align:center;${n?'color:var(--text);font-family:var(--mono);font-size:12px':'color:var(--text3)'}">${n||'—'}</td>`).join('')}
+      <td style="text-align:center;font-weight:500;color:var(--accent);font-family:var(--mono)">${total}</td>
+    </tr>`;
+  }).join('');
+  // 加合計行
+  const totalCells=allCols.map((_,i)=>rows.reduce((s,r)=>s+r.cells[i],0));
+  const grandTotal=recs.length;
+  const totalRow=`<tr style="border-top:1px solid var(--border2)">
+    <td style="font-weight:500;color:var(--text3);font-family:var(--mono)">合計</td>
+    ${totalCells.map(n=>`<td style="text-align:center;font-weight:500;font-family:var(--mono)">${n||'—'}</td>`).join('')}
+    <td style="text-align:center;font-weight:700;color:var(--accent);font-family:var(--mono)">${grandTotal}</td>
+  </tr>`;
+  document.getElementById('purpose-detail-wrap').innerHTML=`
+    <table><thead><tr>
+      <th style="width:100px">月份</th>${colHeaders}<th style="text-align:center;width:60px">合計</th>
+    </tr></thead><tbody>${dataRows}${totalRow}</tbody></table>`;
+}
+
+// ── Firebase 同步 ──
+function showSyncModal(){
+  document.getElementById('fb-apikey').value=FB_CONFIG.apiKey||'';
+  document.getElementById('fb-projectid').value=FB_CONFIG.projectId||'';
+  document.getElementById('fb-dburl').value=FB_CONFIG.databaseURL||'';
+  document.getElementById('fb-appid').value=FB_CONFIG.appId||'';
+  document.getElementById('sync-msg').textContent=fbConnected?'✓ 目前已連線，資料即時同步中':'尚未連線，請填入設定後點「連線並同步」';
+  document.getElementById('sync-msg').style.color=fbConnected?'#34D399':'var(--text2)';
+  document.getElementById('btn-disconnect').style.display=fbConnected?'':'none';
+  document.getElementById('sync-modal').classList.remove('hidden');
+}
+function closeSyncModal(){document.getElementById('sync-modal').classList.add('hidden');}
+
+async function fbConnect(){
+  const apiKey=document.getElementById('fb-apikey').value.trim();
+  const projectId=document.getElementById('fb-projectid').value.trim();
+  const databaseURL=document.getElementById('fb-dburl').value.trim();
+  const appId=document.getElementById('fb-appid').value.trim();
+  if(!apiKey||!projectId||!databaseURL||!appId){
+    showSyncMsg('⚠ 請填寫所有欄位','#FCD34D');return;
+  }
+  FB_CONFIG={apiKey,projectId,databaseURL,appId};saveSync();
+  const btn=document.getElementById('btn-connect');btn.disabled=true;btn.textContent='連線中...';
+  showSyncMsg('正在連線至 Firebase...','var(--text2)');
+  try{
+    const mods=window._fbModules;
+    if(!mods){showSyncMsg('⚠ Firebase 模組尚未載入，請稍後再試','#FCD34D');btn.disabled=false;btn.textContent='🔗 連線並同步';return;}
+    if(fbApp){try{fbApp.delete();}catch(e){}}
+    fbApp=mods.initializeApp({apiKey,authDomain:`${projectId}.firebaseapp.com`,databaseURL,projectId,appId},'or-mgmt-'+Date.now());
+    fbDb=mods.getDatabase(fbApp);
+    const dbRef=mods.ref(fbDb,'ordb/data');
+    // 先讀一次
+    await new Promise((resolve,reject)=>{
+      mods.onValue(dbRef,(snap)=>{
+        mods.off(dbRef);
+        const val=snap.val();
+        if(val&&val.vendors&&val.persons&&val.records){
+          DB=val;save();
+          const page=document.querySelector('.nav-item.active');
+          if(page)page.click();
+          showSyncMsg('✓ 已從雲端讀取資料，開始即時同步','#34D399');
+        } else {
+          // 雲端沒資料，推本地上去
+          mods.set(dbRef,DB).then(()=>showSyncMsg('✓ 已連線並將本地資料同步至雲端','#34D399')).catch(reject);
+        }
+        resolve();
+      },{onlyOnce:false});
+      // 設定即時監聽
+      setTimeout(()=>{
+        mods.onValue(dbRef,(snap)=>{
+          const val=snap.val();
+          if(val&&val.vendors){
+            DB=val;save();
+            // 更新當前頁面
+            const active=document.querySelector('.nav-item.active');
+            if(active){const id=active.getAttribute('data-page');if(id)reloadPage(id);}
+          }
+        });
+      },500);
+    });
+    fbConnected=true;
+    setSyncStatus('ok','即時同步中');
+    document.getElementById('btn-disconnect').style.display='';
+    // 覆寫 save 函式，讓每次儲存都自動推到 Firebase
+    const origSave=save;
+    window._origSave=origSave;
+    window.save=function(){
+      origSave();
+      if(fbDb&&fbConnected){
+        const m=window._fbModules;
+        m.set(m.ref(fbDb,'ordb/data'),DB).catch(e=>console.error('FB write error',e));
+      }
+    };
+  }catch(e){
+    showSyncMsg('✗ 連線失敗：'+e.message,'#F87171');
+    setSyncStatus('err','連線失敗');
+  }
+  btn.disabled=false;btn.textContent='🔗 連線並同步';
+}
+
+function fbDisconnect(){
+  if(fbApp){try{const m=window._fbModules;m.off(m.ref(fbDb,'ordb/data'));}catch(e){}}
+  fbConnected=false;fbApp=null;fbDb=null;
+  if(window._origSave)window.save=window._origSave;
+  setSyncStatus('','未連線');
+  document.getElementById('btn-disconnect').style.display='none';
+  showSyncMsg('已斷開連線','var(--text2)');
+}
+
+function reloadPage(id){
+  if(id==='dashboard')renderDashboard();
+  else if(id==='records'){populateMonthFilter();renderRecords();}
+  else if(id==='vendors')renderVendors();
+  else if(id==='persons')renderPersons();
+  else if(id==='license')renderLicense();
+  else if(id==='analysis')renderAnalysis(currentAnalysis);
+}
+
+function showSyncMsg(msg,color){
+  const el=document.getElementById('sync-msg');
+  el.textContent=msg;el.style.color=color;
+}
+function setSyncStatus(state,label){
+  document.getElementById('sync-dot').className='dot'+(state?' '+state:'');
+  document.getElementById('sync-label').textContent=label;
+}
+function exportData(){const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`or_mgmt_${new Date().toISOString().slice(0,10)}.json`;a.click();}
+function importData(e){const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=ev=>{try{DB=JSON.parse(ev.target.result);save();renderDashboard();alert('匯入成功！');}catch{alert('檔案格式錯誤');}};fr.readAsText(file);e.target.value='';}
+
+// init
+Chart.register(ChartDataLabels);
+document.getElementById('r-date').value=new Date().toISOString().slice(0,10);
+document.getElementById('topbar-right').textContent=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+fillVSel('r-vendor');fillVSel('p-vendor');
+if(FB_CONFIG.apiKey&&FB_CONFIG.databaseURL){
+  // 自動重連 Firebase
+  setTimeout(async()=>{
+    if(!window._fbModules){setTimeout(()=>autoFbConnect(),1500);return;}
+    await autoFbConnect();
+  },800);
+}
+async function autoFbConnect(){
+  if(!FB_CONFIG.apiKey)return;
+  document.getElementById('fb-apikey').value=FB_CONFIG.apiKey;
+  document.getElementById('fb-projectid').value=FB_CONFIG.projectId;
+  document.getElementById('fb-dburl').value=FB_CONFIG.databaseURL;
+  document.getElementById('fb-appid').value=FB_CONFIG.appId;
+  setSyncStatus('warn','重新連線中...');
+  await fbConnect();
+}
+renderDashboard();
+</script>
+</body>
+</html>
