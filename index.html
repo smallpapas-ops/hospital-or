@@ -771,18 +771,18 @@ function renderMonthlyLic(){
   document.getElementById('monthly-matrix-wrap').innerHTML=`<table><thead><tr><th style="width:130px">廠商</th>${monthKeys.map(m=>`<th style="width:80px;text-align:center">${m}</th>`).join('')}</tr></thead><tbody>${vendorIds.map(vid=>`<tr><td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${vName(vid)}">${vName(vid)}</td>${monthKeys.map(m=>{const{t,ok}=mx[vid][m];if(!t)return`<td style="text-align:center;color:var(--text3)">—</td>`;const rate=Math.round(ok/t*100);const col=rate>=80?'var(--ok)':rate>=50?'var(--warn)':'var(--danger)';return`<td style="text-align:center;color:${col};font-weight:500;font-family:var(--mono);font-size:12px">${rate}%</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;
 
   // ── 4月 vs 5月 對照表 ──
-  const m4='2026-04', m5='2026-05';
+  const vc_m4='2026-04', vc_m5='2026-05';
   // 計算每個廠商在各月的持照率（以進場記錄為基準）
   const allVids=[...new Set(DB.records.map(r=>r.vendorId))];
   const compareRows=allVids.map(vid=>{
-    const r4=DB.records.filter(r=>r.vendorId===vid&&r.date.startsWith(m4));
-    const r5=DB.records.filter(r=>r.vendorId===vid&&r.date.startsWith(m5));
+    const r4=DB.records.filter(r=>r.vendorId===vid&&r.date.startsWith(vc_m4));
+    const r5=DB.records.filter(r=>r.vendorId===vid&&r.date.startsWith(vc_m5));
     const rate4=r4.length?Math.round(r4.filter(r=>r.hasLic==='是').length/r4.length*100):null;
     const rate5=r5.length?Math.round(r5.filter(r=>r.hasLic==='是').length/r5.length*100):null;
     // 人員持照率
     const persons=DB.persons.filter(p=>p.vendorId===vid);
-    const pRate=persons.length?Math.round(persons.filter(p=>p.hasLic==='是').length/persons.length*100):null;
-    return{vid,rate4,rate5,pRate,cnt4:r4.length,cnt5:r5.length};
+    const vc_pRate=persons.length?Math.round(persons.filter(p=>p.hasLic==='是').length/persons.length*100):null;
+    return{vid,rate4,rate5,vc_pRate,cnt4:r4.length,cnt5:r5.length};
   }).filter(r=>r.rate4!==null||r.rate5!==null)
     .sort((a,b)=>{
       // 排序：先按5月持照率，無5月則按4月
@@ -807,12 +807,12 @@ function renderMonthlyLic(){
     return`<td style="text-align:center;color:${col};font-weight:500;font-family:var(--mono)">${arrow} ${Math.abs(diff)}%</td>`;
   }
 
-  const improved=compareRows.filter(r=>r.rate4!==null&&r.rate5!==null&&r.rate5>r.rate4).length;
-  const declined=compareRows.filter(r=>r.rate4!==null&&r.rate5!==null&&r.rate5<r.rate4).length;
-  const same=compareRows.filter(r=>r.rate4!==null&&r.rate5!==null&&r.rate5===r.rate4).length;
+  const vc_improved=compareRows.filter(r=>r.rate4!==null&&r.rate5!==null&&r.rate5>r.rate4).length;
+  const vc_declined=compareRows.filter(r=>r.rate4!==null&&r.rate5!==null&&r.rate5<r.rate4).length;
+  const vc_same=compareRows.filter(r=>r.rate4!==null&&r.rate5!==null&&r.rate5===r.rate4).length;
   const summary=`<div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px;font-family:var(--mono)">
-    <span style="color:var(--ok)">↑ 改善：${improved}家</span>
-    <span style="color:var(--danger)">↓ 退步：${declined}家</span>
+    <span style="color:var(--ok)">↑ 改善：${vc_improved}家</span>
+    <span style="color:var(--danger)">↓ 退步：${vc_declined}家</span>
     <span style="color:var(--text3)">→ 持平：${same}家</span>
     <span style="color:var(--text2)">— 單月：${compareRows.filter(r=>r.rate4===null||r.rate5===null).length}家</span>
   </div>`;
@@ -832,7 +832,7 @@ function renderMonthlyLic(){
         ${rateCell(r.rate4,r.cnt4)}
         ${rateCell(r.rate5,r.cnt5)}
         ${diffCell(r.rate4,r.rate5)}
-        ${r.pRate!==null?`<td style="text-align:center;color:${r.pRate>=80?'var(--ok)':r.pRate>=50?'var(--warn)':'var(--danger)'};font-family:var(--mono);font-size:12px">${r.pRate}%</td>`:'<td style="text-align:center;color:var(--text3)">—</td>'}
+        ${r.vc_pRate!==null?`<td style="text-align:center;color:${r.vc_pRate>=80?'var(--ok)':r.vc_pRate>=50?'var(--warn)':'var(--danger)'};font-family:var(--mono);font-size:12px">${r.vc_pRate}%</td>`:'<td style="text-align:center;color:var(--text3)">—</td>'}
       </tr>`;
     }).join('')}</tbody>
   </table>`;
@@ -1111,9 +1111,7 @@ function importCSV(e){
 function parseORCSV(text){
   // 支援 BOM
   if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
-  const lines=text.split(/
-?
-/).filter(l=>l.trim());
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
   if(!lines.length) throw new Error('空白檔案');
 
   // 解析 header
