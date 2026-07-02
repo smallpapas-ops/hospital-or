@@ -663,10 +663,12 @@ function renderMonthlyLic(){
   DB.records.forEach(r=>{const m=r.date.slice(0,7);if(!map[m])map[m]={t:0,ok:0,no:0};map[m].t++;if(r.hasLic==='是')map[m].ok++;else map[m].no++;});
   const months=Object.entries(map).sort();
 
-  // ── 整體持照率對照分析表 ──
-  const m4='2026-04', m5='2026-05';
-  const d4=map[m4]||{t:0,ok:0,no:0};
-  const d5=map[m5]||{t:0,ok:0,no:0};
+  // ── 整體持照率對照分析表（動態取最近兩個月） ──
+  const sortedMonths=Object.keys(map).sort();
+  const prevMKey=sortedMonths.length>=2?sortedMonths[sortedMonths.length-2]:sortedMonths[0];
+  const currMKey=sortedMonths[sortedMonths.length-1];
+  const d4=map[prevMKey]||{t:0,ok:0,no:0};
+  const d5=map[currMKey]||{t:0,ok:0,no:0};
   const r4=d4.t?Math.round(d4.ok/d4.t*100):0;
   const r5=d5.t?Math.round(d5.ok/d5.t*100):0;
   const diff=r5-r4;
@@ -690,10 +692,10 @@ function renderMonthlyLic(){
     '<div style="background:var(--navy3);padding:14px 16px">'+
       '<div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">進場持照率</div>'+
       '<div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:6px">'+
-        '<div style="text-align:center"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">4月</div>'+
+        '<div style="text-align:center"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">'+prevMKey+'</div>'+
         '<div style="font-size:28px;font-weight:700;font-family:var(--mono);color:'+r4Color+'">'+r4+'%</div></div>'+
         '<div style="font-size:20px;color:var(--text3);padding-bottom:4px">→</div>'+
-        '<div style="text-align:center"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">5月</div>'+
+        '<div style="text-align:center"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">'+currMKey+'</div>'+
         '<div style="font-size:28px;font-weight:700;font-family:var(--mono);color:'+r5Color+'">'+r5+'%</div></div>'+
         '<div style="font-size:20px;font-weight:700;color:'+diffColor+';padding-bottom:4px">'+diffArrow+Math.abs(diff)+'%</div>'+
       '</div>'+
@@ -702,10 +704,10 @@ function renderMonthlyLic(){
     '<div style="background:var(--navy3);padding:14px 16px">'+
       '<div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">未持照進場筆數</div>'+
       '<div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:6px">'+
-        '<div style="text-align:center"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">4月</div>'+
+        '<div style="text-align:center"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">'+prevMKey+'</div>'+
         '<div style="font-size:28px;font-weight:700;font-family:var(--mono);color:var(--danger)">'+noLic4+'</div></div>'+
         '<div style="font-size:20px;color:var(--text3);padding-bottom:4px">→</div>'+
-        '<div style="text-align:center"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">5月</div>'+
+        '<div style="text-align:center"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">'+currMKey+'</div>'+
         '<div style="font-size:28px;font-weight:700;font-family:var(--mono);color:var(--danger)">'+noLic5+'</div></div>'+
         '<div style="font-size:20px;font-weight:700;color:'+noLicChgColor+';padding-bottom:4px">'+noLicArr+Math.abs(noLicDiff)+'</div>'+
       '</div>'+
@@ -748,8 +750,8 @@ function renderMonthlyLic(){
   const tableHtml='<table style="width:100%;border-collapse:collapse;font-size:13px">'+
     '<thead><tr>'+
       '<th style="'+thStyle+'width:160px">指標</th>'+
-      '<th style="'+thStyle+'width:110px;text-align:center">4月</th>'+
-      '<th style="'+thStyle+'width:110px;text-align:center">5月</th>'+
+      '<th style="'+thStyle+'width:110px;text-align:center">'+prevMKey+'</th>'+
+      '<th style="'+thStyle+'width:110px;text-align:center">'+currMKey+'</th>'+
       '<th style="'+thStyle+'width:100px;text-align:center">變化</th>'+
       '<th style="'+thStyle+'">說明</th>'+
     '</tr></thead>'+
@@ -771,7 +773,8 @@ function renderMonthlyLic(){
   document.getElementById('monthly-matrix-wrap').innerHTML=`<table><thead><tr><th style="width:130px">廠商</th>${monthKeys.map(m=>`<th style="width:80px;text-align:center">${m}</th>`).join('')}</tr></thead><tbody>${vendorIds.map(vid=>`<tr><td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${vName(vid)}">${vName(vid)}</td>${monthKeys.map(m=>{const{t,ok}=mx[vid][m];if(!t)return`<td style="text-align:center;color:var(--text3)">—</td>`;const rate=Math.round(ok/t*100);const col=rate>=80?'var(--ok)':rate>=50?'var(--warn)':'var(--danger)';return`<td style="text-align:center;color:${col};font-weight:500;font-family:var(--mono);font-size:12px">${rate}%</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;
 
   // ── 4月 vs 5月 對照表 ──
-  const vc_m4='2026-04', vc_m5='2026-05';
+  const vc_m4=sortedMonths.length>=2?sortedMonths[sortedMonths.length-2]:sortedMonths[0];
+  const vc_m5=sortedMonths[sortedMonths.length-1];
   // 計算每個廠商在各月的持照率（以進場記錄為基準）
   const allVids=[...new Set(DB.records.map(r=>r.vendorId))];
   const compareRows=allVids.map(vid=>{
