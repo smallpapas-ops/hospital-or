@@ -279,8 +279,12 @@ input[type="file"]{display:none;}
         </div>
       </div>
       <div id="analysis-monthly-lic" style="display:none">
+        <div class="card" id="monthly-trend-cards-card">
+          <div class="card-header"><span class="card-title">各月持照率一覽</span><span style="font-size:11px;color:var(--text3)">↑ 改善　↓ 退步</span></div>
+          <div id="monthly-trend-cards"></div>
+        </div>
         <div class="card" id="monthly-overall-compare-card">
-          <div class="card-header"><span class="card-title">整體持照率對照分析</span></div>
+          <div class="card-header"><span class="card-title">整體持照率對照分析（最近兩月）</span></div>
           <div id="monthly-overall-compare"></div>
         </div>
         <div class="card"><div class="card-header"><span class="card-title">每月整體持照率趨勢</span></div><div class="chart-wrap-lg"><canvas id="ch-monthly-trend" role="img" aria-label="折線圖"></canvas></div></div>
@@ -366,6 +370,7 @@ input[type="file"]{display:none;}
 </div>
 
 <script>
+Chart.register(ChartDataLabels);
 const KEY='or_mgmt_v3';
 let DB={vendors:[],persons:[],records:[]};
 let FB_CONFIG={
@@ -468,7 +473,7 @@ function renderDashboard(){
   destroyChart('type');
   charts['type']=new Chart(document.getElementById('ch-type'),{type:'doughnut',
     data:{labels:[`跟刀手術 (${op})`,`維修保養 (${mt})`],datasets:[{data:[op,mt],backgroundColor:['#00C4B4','#F59E0B'],borderWidth:2,borderColor:'#152231'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:11,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<5)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=5;}}}}});
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:11,weight:'bold'},backgroundColor:'rgba(0,0,0,0.45)',borderRadius:3,padding:{top:2,bottom:2,left:4,right:4},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<5)return null;const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+v+'筆\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=5;}}}}});
 
   // 各月持照率
   const map={};
@@ -476,8 +481,22 @@ function renderDashboard(){
   const months=Object.entries(map).sort();
   destroyChart('lic');
   charts['lic']=new Chart(document.getElementById('ch-lic'),{type:'bar',
-    data:{labels:months.map(([m])=>m),datasets:[{data:months.map(([,v])=>v.t?Math.round(v.ok/v.t*100):0),backgroundColor:months.map(([,v])=>{const r=v.t?Math.round(v.ok/v.t*100):0;return r>=80?'rgba(16,185,129,0.7)':r>=60?'rgba(245,158,11,0.7)':'rgba(239,68,68,0.7)';}),borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#8FA4BA'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'},min:0,max:100}}}});
+    data:{labels:months.map(([m])=>m),datasets:[
+      {label:'持照率%',data:months.map(([,v])=>v.t?Math.round(v.ok/v.t*100):0),
+        backgroundColor:months.map(([,v])=>{const r=v.t?Math.round(v.ok/v.t*100):0;return r>=80?'rgba(16,185,129,0.85)':r>=60?'rgba(245,158,11,0.85)':'rgba(239,68,68,0.85)';}),
+        borderRadius:4,datalabels:{color:'#fff',font:{size:12,weight:'bold'},
+          anchor:'end',align:'start',
+          formatter:(v)=>v+'%',
+          display:true}},
+      {label:'未持照率%',data:months.map(([,v])=>v.t?100-Math.round(v.ok/v.t*100):0),
+        backgroundColor:'rgba(255,255,255,0.08)',
+        borderRadius:4,datalabels:{display:false}},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},datalabels:{}},
+      scales:{x:{grid:{display:false},ticks:{color:'#8FA4BA',font:{size:12}}},
+              y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'},min:0,max:100,
+                ticks:{color:'#8FA4BA',callback:v=>v+'%'}}}}});
 
   // 科別圓餅
   const dmap={};
@@ -486,7 +505,7 @@ function renderDashboard(){
   destroyChart('dept');
   charts['dept']=new Chart(document.getElementById('ch-dept'),{type:'doughnut',
     data:{labels:depts.map(([d,c])=>`${d}(${c})`),datasets:[{data:depts.map(([,c])=>c),backgroundColor:['#00C4B4','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316'],borderWidth:2,borderColor:'#152231'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},backgroundColor:'rgba(0,0,0,0.45)',borderRadius:3,padding:{top:2,bottom:2,left:3,right:3},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return null;const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+v+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
 
   // 廠商進場 Top 10 橫條
   const vmap={};
@@ -671,8 +690,49 @@ function renderMonthlyLic(){
   DB.records.forEach(r=>{const m=r.date.slice(0,7);if(!map[m])map[m]={t:0,ok:0,no:0};map[m].t++;if(r.hasLic==='是')map[m].ok++;else map[m].no++;});
   const months=Object.entries(map).sort();
 
-  // ── 整體持照率對照分析表（動態取最近兩個月） ──
+  // ── 各月持照率一覽卡片 ──
   const sortedMonths=Object.keys(map).sort();
+  const mLabels={'2026-04':'2026年4月','2026-05':'2026年5月','2026-06':'2026年6月','2026-07':'2026年7月','2026-08':'2026年8月','2026-09':'2026年9月'};
+  // 各月持照率一覽 — 並排+箭頭連接顯示變化
+  let trendCardsHtml='<div style="display:flex;align-items:stretch;gap:0;flex-wrap:nowrap;overflow-x:auto">';
+  sortedMonths.forEach(function(m,i){
+    const d=map[m];
+    const rate=d.t?Math.round(d.ok/d.t*100):0;
+    const rateColor=rate>=80?'var(--ok)':rate>=60?'var(--warn)':'var(--danger)';
+    const noLicRate=d.t?Math.round(d.no/d.t*100):0;
+    const okW=d.t?Math.round(d.ok/d.t*100):0;
+    // 箭頭+變化（與上月比較）
+    if(i>0){
+      const prev=map[sortedMonths[i-1]];
+      const prevRate=prev.t?Math.round(prev.ok/prev.t*100):0;
+      const diff=rate-prevRate;
+      const dc=diff>0?'var(--ok)':diff<0?'var(--danger)':'var(--text3)';
+      const da=diff>0?'↑':diff<0?'↓':'→';
+      trendCardsHtml+=
+        '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px;flex-shrink:0">'+
+          '<div style="font-size:20px;color:var(--text3)">→</div>'+
+          '<div style="font-size:13px;font-weight:700;color:'+dc+';font-family:var(--mono)">'+da+Math.abs(diff)+'%</div>'+
+        '</div>';
+    }
+    trendCardsHtml+=
+      '<div style="background:var(--navy3);border:1px solid var(--border2);border-radius:10px;padding:16px 18px;min-width:200px;flex-shrink:0">'+
+        '<div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:6px">'+(mLabels[m]||m)+'</div>'+
+        '<div style="font-size:36px;font-weight:700;font-family:var(--mono);color:'+rateColor+';line-height:1;margin-bottom:8px">'+rate+'%</div>'+
+        '<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-bottom:8px;background:rgba(255,255,255,0.06)">'+
+          '<div style="width:'+okW+'%;background:var(--ok);transition:width .4s"></div>'+
+          '<div style="width:'+(100-okW)+'%;background:var(--danger)"></div>'+
+        '</div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:12px;font-family:var(--mono);margin-bottom:4px">'+
+          '<span style="color:var(--ok)">✓ 持照 '+d.ok+'筆</span>'+
+          '<span style="color:var(--danger)">✗ 未持照 '+d.no+'筆</span>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--text3)">總進場 '+d.t+'筆　未持照佔 '+noLicRate+'%</div>'+
+      '</div>';
+  });
+  trendCardsHtml+='</div>';
+  document.getElementById('monthly-trend-cards').innerHTML=trendCardsHtml;
+
+  // ── 整體持照率對照分析表（動態取最近兩個月） ──
   const prevMKey=sortedMonths.length>=2?sortedMonths[sortedMonths.length-2]:sortedMonths[0];
   const currMKey=sortedMonths[sortedMonths.length-1];
   const d4=map[prevMKey]||{t:0,ok:0,no:0};
@@ -907,26 +967,13 @@ function renderNolicDetail(){
     options:{responsive:true,maintainAspectRatio:false,cutout:'52%',
       plugins:{
         legend:{position:'bottom',labels:{color:'#8FA4BA',font:{size:11},boxWidth:10,padding:8}},
-        datalabels:{color:'#fff',font:{size:12,weight:'bold'},
-          formatter:(v,ctx)=>{
-            const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
-            const pct=Math.round(v/total*100);
-            if(pct<5)return'';
-            const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];
-            return lbl+'\n'+pct+'%';
-          },
-          textAlign:'center',
-          display:(ctx)=>{
-            const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
-            return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=5;
-          }
-        }
+        datalabels:{color:'#fff',font:{size:11,weight:'bold'},backgroundColor:'rgba(0,0,0,0.45)',borderRadius:3,padding:{top:2,bottom:2,left:4,right:4},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<5)return null;const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+v+'筆\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=5;}}
       }
     }
   });
 
   destroyChart('nolic-dept');
-  charts['nolic-dept']=new Chart(document.getElementById('ch-nolic-dept'),{type:'doughnut',data:{labels:depts.map(([d,c])=>`${d}(${c})`),datasets:[{data:depts.map(([,c])=>c),backgroundColor:['#00C4B4','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316'],borderWidth:2,borderColor:'#152231'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+  charts['nolic-dept']=new Chart(document.getElementById('ch-nolic-dept'),{type:'doughnut',data:{labels:depts.map(([d,c])=>`${d}(${c})`),datasets:[{data:depts.map(([,c])=>c),backgroundColor:['#00C4B4','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316'],borderWidth:2,borderColor:'#152231'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},backgroundColor:'rgba(0,0,0,0.45)',borderRadius:3,padding:{top:2,bottom:2,left:3,right:3},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return null;const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+v+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
   document.getElementById('nolic-risk-list').innerHTML=stats.map(s=>{const risk=s.count>=10?'high':s.count>=4?'mid':'low';const rL=risk==='high'?'高':risk==='mid'?'中':'低';return`<div class="risk-card"><div class="risk-badge ${risk}">${rL}</div><div class="risk-info"><div class="risk-name">${s.p.name||pName(s.pid)}</div><div class="risk-vendor">${vName(s.p.vendorId)}</div><div class="risk-meta">${s.count}次　${s.type.join('/')}　${s.depts.slice(0,3).join('·')||'—'}　跨${s.months}月</div></div><div style="flex-shrink:0;text-align:right"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${risk==='high'?'var(--danger)':risk==='mid'?'var(--warn)':'var(--ok)'}">${s.count}</div><div style="font-size:10px;color:var(--text3);font-family:var(--mono)">次</div></div></div>`;}).join('')||'<div class="empty-state">尚無未持照進場記錄</div>';
 
   // ── 廠商未持照進場目的分析 ──
@@ -1022,7 +1069,7 @@ function renderPurposeDist(){
   const allEntries=Object.entries(allMap).sort((a,b)=>b[1]-a[1]);
   charts['purpose-all']=new Chart(document.getElementById('ch-purpose-all'),{type:'doughnut',
     data:{labels:allEntries.map(([k,v])=>`${k}(${v})`),datasets:[{data:allEntries.map(([,v])=>v),backgroundColor:allEntries.map((_,i)=>COLORS[i%COLORS.length]),borderWidth:2,borderColor:'#152231'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},backgroundColor:'rgba(0,0,0,0.45)',borderRadius:3,padding:{top:2,bottom:2,left:3,right:3},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return null;const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+v+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
 
   // 跟刀科別圓餅（含上課）
   destroyChart('purpose-op');
@@ -1031,7 +1078,7 @@ function renderPurposeDist(){
   const opEntries=Object.entries(opMap).sort((a,b)=>b[1]-a[1]);
   charts['purpose-op']=new Chart(document.getElementById('ch-purpose-op'),{type:'doughnut',
     data:{labels:opEntries.map(([k,v])=>`${k}(${v})`),datasets:[{data:opEntries.map(([,v])=>v),backgroundColor:opEntries.map((_,i)=>COLORS[i%COLORS.length]),borderWidth:2,borderColor:'#152231'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},backgroundColor:'rgba(0,0,0,0.45)',borderRadius:3,padding:{top:2,bottom:2,left:3,right:3},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return null;const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+v+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
 
   // 維修保養科別圓餅
   destroyChart('purpose-maint');
@@ -1040,7 +1087,7 @@ function renderPurposeDist(){
   const mEntries=Object.entries(mMap).sort((a,b)=>b[1]-a[1]);
   charts['purpose-maint']=new Chart(document.getElementById('ch-purpose-maint'),{type:'doughnut',
     data:{labels:mEntries.map(([k,v])=>`${k}(${v})`),datasets:[{data:mEntries.map(([,v])=>v),backgroundColor:mEntries.map((_,i)=>COLORS[i%COLORS.length]),borderWidth:2,borderColor:'#152231'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},backgroundColor:'rgba(0,0,0,0.45)',borderRadius:3,padding:{top:2,bottom:2,left:3,right:3},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return null;const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+v+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
 
   // 月份 × 進場目的堆疊橫條圖
   destroyChart('purpose-monthly');
