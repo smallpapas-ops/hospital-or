@@ -286,7 +286,7 @@ input[type="file"]{display:none;}
         <div class="card"><div class="card-header"><span class="card-title">每月整體持照率趨勢</span></div><div class="chart-wrap-lg"><canvas id="ch-monthly-trend" role="img" aria-label="折線圖"></canvas></div></div>
         <div class="grid2">
           <div class="card"><div class="card-header"><span class="card-title">每月進場量</span></div><div class="chart-wrap"><canvas id="ch-monthly-vol" role="img" aria-label="長條圖"></canvas></div></div>
-          <div class="card"><div class="card-header"><span class="card-title">每月未持照筆數</span></div><div class="chart-wrap"><canvas id="ch-monthly-nolic" role="img" aria-label="長條圖"></canvas></div></div>
+          <div class="card"><div class="card-header"><span class="card-title">每月未持照比率變化（%）</span></div><div class="chart-wrap"><canvas id="ch-monthly-nolic-rate" role="img" aria-label="每月未持照比率折線圖"></canvas></div></div>
         </div>
         <div class="card"><div class="card-header"><span class="card-title">廠商 × 月份持照率矩陣</span></div><div class="tbl-wrap" id="monthly-matrix-wrap"></div></div>
         <div class="card"><div class="card-header"><span class="card-title">4月 vs 5月 廠商持照率對照表</span><span style="font-size:11px;color:var(--text3)">↑ 改善　↓ 退步　— 僅單月</span></div><div class="tbl-wrap" id="monthly-compare-wrap"></div></div>
@@ -295,8 +295,9 @@ input[type="file"]{display:none;}
         <div class="metrics" id="an-nolic-metrics"></div>
         <div class="grid2">
           <div class="card"><div class="card-header"><span class="card-title">未持照人員進場次數排行</span></div><div id="nolic-bars"></div></div>
-          <div class="card"><div class="card-header"><span class="card-title">未持照跟刀科別分布</span></div><div class="chart-wrap"><canvas id="ch-nolic-dept" role="img" aria-label="圓餅圖"></canvas></div></div>
+          <div class="card"><div class="card-header"><span class="card-title">未持照進場目的分析</span></div><div class="chart-wrap"><canvas id="ch-nolic-purpose" role="img" aria-label="未持照進場目的圓餅圖"></canvas></div></div>
         </div>
+        <div class="card"><div class="card-header"><span class="card-title">未持照跟刀科別分布</span></div><div class="chart-wrap"><canvas id="ch-nolic-dept" role="img" aria-label="圓餅圖"></canvas></div></div>
         <div class="card"><div class="card-header"><span class="card-title">未持照人員風險清單</span></div><div id="nolic-risk-list"></div></div>
         <div class="card"><div class="card-header"><span class="card-title">廠商未持照進場目的分析</span><span style="font-size:11px;color:var(--text3)">依廠商列出各進場類型筆數</span></div>
           <div class="tbl-wrap" id="nolic-vendor-purpose"></div>
@@ -771,8 +772,31 @@ function renderMonthlyLic(){
   charts['monthly-trend']=new Chart(document.getElementById('ch-monthly-trend'),{type:'line',data:{labels:months.map(([m])=>m),datasets:[{label:'持照率(%)',data:months.map(([,v])=>v.t?Math.round(v.ok/v.t*100):0),borderColor:'#00C4B4',backgroundColor:'rgba(0,196,180,0.1)',tension:0.4,fill:true,pointBackgroundColor:'#00C4B4',pointRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8FA4BA',font:{size:11}}}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'},min:0,max:100}}}});
   destroyChart('monthly-vol');
   charts['monthly-vol']=new Chart(document.getElementById('ch-monthly-vol'),{type:'bar',data:{labels:months.map(([m])=>m),datasets:[{label:'進場筆數',data:months.map(([,v])=>v.t),backgroundColor:'rgba(0,196,180,0.6)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#8FA4BA'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'}}}}});
-  destroyChart('monthly-nolic');
-  charts['monthly-nolic']=new Chart(document.getElementById('ch-monthly-nolic'),{type:'bar',data:{labels:months.map(([m])=>m),datasets:[{label:'未持照筆數',data:months.map(([,v])=>v.no),backgroundColor:'rgba(239,68,68,0.6)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#8FA4BA'}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'}}}}});
+  destroyChart('monthly-nolic-rate');
+  charts['monthly-nolic-rate']=new Chart(document.getElementById('ch-monthly-nolic-rate'),{
+    type:'line',
+    data:{
+      labels:months.map(([m])=>m),
+      datasets:[
+        {label:'未持照比率(%)',data:months.map(([,v])=>v.t?Math.round(v.no/v.t*100):0),
+          borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,0.1)',
+          tension:0.4,fill:true,pointBackgroundColor:'#EF4444',pointRadius:6,yAxisID:'y'},
+        {label:'未持照筆數',data:months.map(([,v])=>v.no),
+          borderColor:'#F59E0B',backgroundColor:'transparent',
+          tension:0.4,borderDash:[4,3],pointBackgroundColor:'#F59E0B',pointRadius:5,yAxisID:'y1'},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8FA4BA',font:{size:11},boxWidth:10,padding:10}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA'}},
+        y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#EF4444',callback:v=>v+'%'},
+          min:0,max:100,title:{display:true,text:'未持照比率',color:'#EF4444',font:{size:10}}},
+        y1:{position:'right',grid:{display:false},ticks:{color:'#F59E0B'},
+          title:{display:true,text:'未持照筆數',color:'#F59E0B',font:{size:10}}}
+      }
+    }
+  });
   const vendorIds=[...new Set(DB.records.map(r=>r.vendorId))];
   const monthKeys=months.map(([m])=>m);
   const mx={};vendorIds.forEach(v=>{mx[v]={};monthKeys.forEach(m=>{mx[v][m]={t:0,ok:0};});});
@@ -862,6 +886,45 @@ function renderNolicDetail(){
   document.getElementById('nolic-bars').innerHTML=stats.slice(0,10).map(s=>{const risk=s.count>=10?'high':s.count>=4?'mid':'low';const color=risk==='high'?'var(--danger)':risk==='mid'?'var(--warn)':'var(--ok)';const lbl=`${vName(s.p.vendorId)} · ${s.p.name||pName(s.pid)}`;return`<div class="bar-row"><div class="bar-label" title="${lbl}">${lbl}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(s.count/maxC*100)}%;background:${color}"></div></div><div class="bar-val" style="color:${color}">${s.count}</div></div>`;}).join('');
   const dmap={};DB.records.filter(r=>r.hasLic==='否'&&r.dept).forEach(r=>{dmap[r.dept]=(dmap[r.dept]||0)+1;});
   const depts=Object.entries(dmap).sort((a,b)=>b[1]-a[1]);
+
+  // ── 未持照進場目的圓餅圖 ──
+  const noLicPurpose={跟刀手術:0,維修保養:0,上課:0};
+  DB.records.filter(r=>r.hasLic==='否').forEach(r=>{
+    if(r.type==='維修保養')noLicPurpose['維修保養']++;
+    else if(r.dept==='上課')noLicPurpose['上課']++;
+    else noLicPurpose['跟刀手術']++;
+  });
+  const purposeEntries=Object.entries(noLicPurpose).filter(([,v])=>v>0);
+  destroyChart('nolic-purpose');
+  charts['nolic-purpose']=new Chart(document.getElementById('ch-nolic-purpose'),{
+    type:'doughnut',
+    data:{
+      labels:purposeEntries.map(([k,v])=>k+'('+v+')'),
+      datasets:[{data:purposeEntries.map(([,v])=>v),
+        backgroundColor:['#00C4B4','#F59E0B','#8B5CF6'],
+        borderWidth:2,borderColor:'#152231'}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',
+      plugins:{
+        legend:{position:'bottom',labels:{color:'#8FA4BA',font:{size:11},boxWidth:10,padding:8}},
+        datalabels:{color:'#fff',font:{size:12,weight:'bold'},
+          formatter:(v,ctx)=>{
+            const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+            const pct=Math.round(v/total*100);
+            if(pct<5)return'';
+            const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];
+            return lbl+'\n'+pct+'%';
+          },
+          textAlign:'center',
+          display:(ctx)=>{
+            const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+            return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=5;
+          }
+        }
+      }
+    }
+  });
+
   destroyChart('nolic-dept');
   charts['nolic-dept']=new Chart(document.getElementById('ch-nolic-dept'),{type:'doughnut',data:{labels:depts.map(([d,c])=>`${d}(${c})`),datasets:[{data:depts.map(([,c])=>c),backgroundColor:['#00C4B4','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316'],borderWidth:2,borderColor:'#152231'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'52%',plugins:{legend:{display:false},datalabels:{color:'#fff',font:{size:10,weight:'bold'},formatter:(v,ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);const pct=Math.round(v/total*100);if(pct<4)return'';const lbl=ctx.chart.data.labels[ctx.dataIndex].split('(')[0];return lbl+'\n'+pct+'%';},textAlign:'center',display:(ctx)=>{const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);return Math.round(ctx.dataset.data[ctx.dataIndex]/total*100)>=4;}}}}});
   document.getElementById('nolic-risk-list').innerHTML=stats.map(s=>{const risk=s.count>=10?'high':s.count>=4?'mid':'low';const rL=risk==='high'?'高':risk==='mid'?'中':'低';return`<div class="risk-card"><div class="risk-badge ${risk}">${rL}</div><div class="risk-info"><div class="risk-name">${s.p.name||pName(s.pid)}</div><div class="risk-vendor">${vName(s.p.vendorId)}</div><div class="risk-meta">${s.count}次　${s.type.join('/')}　${s.depts.slice(0,3).join('·')||'—'}　跨${s.months}月</div></div><div style="flex-shrink:0;text-align:right"><div style="font-size:22px;font-weight:700;font-family:var(--mono);color:${risk==='high'?'var(--danger)':risk==='mid'?'var(--warn)':'var(--ok)'}">${s.count}</div><div style="font-size:10px;color:var(--text3);font-family:var(--mono)">次</div></div></div>`;}).join('')||'<div class="empty-state">尚無未持照進場記錄</div>';
@@ -1334,30 +1397,21 @@ document.addEventListener('click',closeExportMenu);
 function exportPDF(){
   closeExportMenu();
   const today=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-
-  // 計算統計
   const total=DB.records.length;
   const persons=DB.persons.length;
   const licOk=DB.persons.filter(p=>p.hasLic==='是').length;
   const noLic=persons-licOk;
   const licRate=persons?Math.round(licOk/persons*100):0;
   const opCnt=DB.records.filter(r=>r.type==='跟刀手術').length;
-  const maintCnt=DB.records.filter(r=>r.type==='維修保養').length;
-
-  // 月份統計
   const monthMap={};
   DB.records.forEach(r=>{const m=r.date.slice(0,7);if(!monthMap[m])monthMap[m]={t:0,ok:0,no:0};monthMap[m].t++;if(r.hasLic==='是')monthMap[m].ok++;else monthMap[m].no++;});
   const months=Object.entries(monthMap).sort();
-
-  // 廠商統計
   const vendorStats=DB.vendors.map(v=>{
     const ps=DB.persons.filter(p=>p.vendorId===v.id);
     const ok=ps.filter(p=>p.hasLic==='是').length;
     const rc=DB.records.filter(r=>r.vendorId===v.id).length;
     return{name:v.name,total:ps.length,ok,no:ps.length-ok,rc,rate:ps.length?Math.round(ok/ps.length*100):null};
   }).filter(s=>s.total>0).sort((a,b)=>b.rc-a.rc).slice(0,20);
-
-  // 未持照人員
   const noLicPids=[...new Set(DB.records.filter(r=>r.hasLic==='否').map(r=>r.personId))];
   const noLicStats=noLicPids.map(pid=>{
     const p=DB.persons.find(x=>x.id===pid)||{name:pName(pid),vendorId:''};
@@ -1365,96 +1419,67 @@ function exportPDF(){
     return{name:p.name||pName(pid),vendor:vName(p.vendorId),count:recs.length,
       types:[...new Set(recs.map(r=>r.type==='維修保養'?'維修':r.dept==='上課'?'上課':'跟刀'))].join('/')};
   }).sort((a,b)=>b.count-a.count);
-
-  // 科別統計
   const deptMap={};
   DB.records.filter(r=>r.dept&&r.type==='跟刀手術').forEach(r=>{deptMap[r.dept]=(deptMap[r.dept]||0)+1;});
   const depts=Object.entries(deptMap).sort((a,b)=>b[1]-a[1]);
-
   function rateColor(r){return r>=80?'#0A7C59':r>=60?'#B45309':'#B91C1C';}
-  function th(t,w){return '<th style="padding:6px 10px;background:#0D1B2A;color:#8FA4BA;font-size:11px;text-align:left;border-bottom:1.5px solid #1C2E42;white-space:nowrap'+(w?';width:'+w:'')+'">'+t+'</th>';}
-  function td(t,opts){const s='padding:6px 10px;border-bottom:0.5px solid #e5e7eb;font-size:12px;'+(opts||'');return '<td style="'+s+'">'+t+'</td>';}
-  function tr(cells,bg){return '<tr style="background:'+(bg||'#fff')+'">'+cells+'</tr>';}
 
-  const html2='<!DOCTYPE html><html><head><meta charset="UTF-8">'+
+  // 產生列印用 HTML，用 Blob + iframe 觸發 PDF 下載
+  const reportHTML='<!DOCTYPE html><html><head><meta charset="UTF-8">'+
   '<style>'+
-  'body{font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;font-size:13px;color:#1a1a2e;margin:0;padding:0}'+
-  'h1{font-size:22px;font-weight:700;color:#0D1B2A;margin:0 0 4px}'+
-  'h2{font-size:14px;font-weight:700;color:#00957a;margin:24px 0 10px;padding:6px 12px;background:#e8faf6;border-left:4px solid #00C4B4;border-radius:0 4px 4px 0}'+
-  'table{width:100%;border-collapse:collapse;margin-bottom:14px}'+
-  'th{background:#0D1B2A;color:#8FA4BA;padding:6px 10px;font-size:11px;text-align:left;border-bottom:1.5px solid #1C2E42}'+
-  'td{padding:6px 10px;border-bottom:0.5px solid #e5e7eb;font-size:12px}'+
+  '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap");'+
+  '*{box-sizing:border-box;margin:0;padding:0}'+
+  'body{font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;font-size:12px;color:#1a1a2e;background:#fff;padding:20px 24px}'+
+  'h1{font-size:20px;font-weight:700;color:#0D1B2A;margin-bottom:4px}'+
+  '.subtitle{font-size:11px;color:#6b7280;margin-bottom:16px}'+
+  'h2{font-size:13px;font-weight:700;color:#fff;background:#0D5C4A;margin:18px 0 8px;padding:5px 12px;border-radius:4px}'+
+  '.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}'+
+  '.metric{background:#f0fdf4;border:1px solid #6ee7b7;border-radius:6px;padding:10px;text-align:center}'+
+  '.metric .lbl{font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}'+
+  '.metric .val{font-size:20px;font-weight:700}'+
+  'table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:11px}'+
+  'th{background:#0D1B2A;color:#d1fae5;padding:5px 8px;text-align:left;font-size:10px;white-space:nowrap}'+
+  'td{padding:5px 8px;border-bottom:0.5px solid #e5e7eb;vertical-align:top}'+
   'tr:nth-child(even) td{background:#f8fafc}'+
-  '.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}'+
-  '.metric{background:#f0fafa;border:1px solid #a7f3d0;border-radius:8px;padding:12px 14px;text-align:center}'+
-  '.metric-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}'+
-  '.metric-val{font-size:24px;font-weight:700;color:#0D1B2A}'+
-  '.footer{font-size:10px;color:#aaa;text-align:center;margin-top:30px;padding-top:10px;border-top:1px solid #e5e7eb}'+
-  '@media print{@page{size:A4;margin:1.8cm 2cm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'+
-  '</style></head><body>'+
+  '.risk-h{color:#B91C1C;font-weight:500}.risk-m{color:#B45309;font-weight:500}.risk-l{color:#0A7C59}'+
+  '.footer{font-size:9px;color:#9ca3af;text-align:center;margin-top:20px;padding-top:8px;border-top:0.5px solid #e5e7eb}'+
+  '@page{size:A4;margin:1.5cm 1.8cm}'+
+  '@media print{body{padding:0}h2{-webkit-print-color-adjust:exact;print-color-adjust:exact}.metric{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'+
+  '</style></head><body onload="window.print()">'+
   '<h1>恩主公醫院　手術室門禁管理分析報告</h1>'+
-  '<p style="color:#6b7280;font-size:12px;margin:0 0 20px">產製日期：'+today+'　資料範圍：'+months.map(([m])=>m).join('、')+'</p>'+
-
-  '<div class="metric-grid">'+
-    '<div class="metric"><div class="metric-label">總進場筆數</div><div class="metric-val" style="color:#0D1B2A">'+total+'</div></div>'+
-    '<div class="metric"><div class="metric-label">廠商家數</div><div class="metric-val">'+DB.vendors.length+'</div></div>'+
-    '<div class="metric"><div class="metric-label">人員持照率</div><div class="metric-val" style="color:'+rateColor(licRate)+'">'+licRate+'%</div></div>'+
-    '<div class="metric"><div class="metric-label">未持照人員</div><div class="metric-val" style="color:#B91C1C">'+noLic+'</div></div>'+
+  '<div class="subtitle">產製日期：'+today+'　　資料範圍：'+months.map(([m])=>m).join('、')+'</div>'+
+  '<div class="metrics">'+
+    '<div class="metric"><div class="lbl">總進場筆數</div><div class="val">'+total+'</div></div>'+
+    '<div class="metric"><div class="lbl">廠商家數</div><div class="val">'+DB.vendors.length+'</div></div>'+
+    '<div class="metric"><div class="lbl">人員持照率</div><div class="val" style="color:'+rateColor(licRate)+'">'+licRate+'%</div></div>'+
+    '<div class="metric"><div class="lbl">未持照人員</div><div class="val" style="color:#B91C1C">'+noLic+'</div></div>'+
   '</div>'+
-
   '<h2>一、月份進場統計</h2>'+
-  '<table><thead><tr>'+
-    '<th>月份</th><th>進場筆數</th><th>持照筆數</th><th>未持照筆數</th><th>持照率</th>'+
-  '</tr></thead><tbody>'+
-  months.map(([m,v],i)=>{const r=v.t?Math.round(v.ok/v.t*100):0;return '<tr style="background:'+(i%2===1?'#f8fafc':'#fff')+'"><td>'+m+'</td><td>'+v.t+'</td><td>'+v.ok+'</td><td style="color:#B91C1C">'+v.no+'</td><td style="color:'+rateColor(r)+';font-weight:500">'+r+'%</td></tr>';}).join('')+
+  '<table><thead><tr><th>月份</th><th>進場筆數</th><th>持照筆數</th><th>未持照筆數</th><th>持照率</th><th>未持照佔比</th></tr></thead><tbody>'+
+  months.map(([m,v],i)=>{const r=v.t?Math.round(v.ok/v.t*100):0;return'<tr><td>'+m+'</td><td>'+v.t+'</td><td>'+v.ok+'</td><td style="color:#B91C1C">'+v.no+'</td><td style="color:'+rateColor(r)+';font-weight:500">'+r+'%</td><td>'+(v.t?Math.round(v.no/v.t*100):0)+'%</td></tr>';}).join('')+
   '</tbody></table>'+
-
   '<h2>二、跟刀科別分布</h2>'+
-  '<table><thead><tr><th>科別</th><th>進場次數</th><th>佔比</th></tr></thead><tbody>'+
-  depts.map(([d,c],i)=>'<tr style="background:'+(i%2===1?'#f8fafc':'#fff')+'"><td>'+d+'</td><td>'+c+'</td><td>'+(opCnt?Math.round(c/opCnt*100):0)+'%</td></tr>').join('')+
+  '<table><thead><tr><th>科別</th><th>進場次數</th><th>佔跟刀比例</th></tr></thead><tbody>'+
+  depts.map(([d,c])=>'<tr><td>'+d+'</td><td>'+c+'</td><td>'+(opCnt?Math.round(c/opCnt*100):0)+'%</td></tr>').join('')+
   '</tbody></table>'+
-
-  '<h2>三、廠商進場次數 Top 20（依進場次數排序）</h2>'+
-  '<table><thead><tr><th>廠商</th><th>人員數</th><th>持照人員</th><th>未持照</th><th>人員持照率</th><th>進場次數</th></tr></thead><tbody>'+
-  vendorStats.map((s,i)=>{const r=s.rate;const rc=r!==null?rateColor(r):'#6b7280';return '<tr style="background:'+(i%2===1?'#f8fafc':'#fff')+'"><td style="font-weight:500">'+s.name+'</td><td>'+s.total+'</td><td style="color:#0A7C59">'+s.ok+'</td><td style="color:#B91C1C">'+s.no+'</td><td style="color:'+rc+';font-weight:500">'+(r!==null?r+'%':'—')+'</td><td>'+s.rc+'</td></tr>';}).join('')+
+  '<h2>三、廠商進場 Top 20（依進場次數排序）</h2>'+
+  '<table><thead><tr><th>廠商</th><th>人員數</th><th>持照</th><th>未持照</th><th>持照率</th><th>進場次</th></tr></thead><tbody>'+
+  vendorStats.map((s,i)=>{const r=s.rate;return'<tr><td style="font-weight:500">'+s.name+'</td><td>'+s.total+'</td><td style="color:#0A7C59">'+s.ok+'</td><td style="color:#B91C1C">'+s.no+'</td><td style="color:'+(r!==null?rateColor(r):'#6b7280')+';font-weight:500">'+(r!==null?r+'%':'—')+'</td><td>'+s.rc+'</td></tr>';}).join('')+
   '</tbody></table>'+
-
   '<h2>四、未持照人員清單（依進場次數排序）</h2>'+
-  '<table><thead><tr><th>廠商</th><th>姓名</th><th>進場次數</th><th>進場類型</th><th>風險</th></tr></thead><tbody>'+
-  noLicStats.map((s,i)=>{const risk=s.count>=10?'高風險':s.count>=4?'中風險':'低風險';const rc=s.count>=10?'#B91C1C':s.count>=4?'#B45309':'#0A7C59';return '<tr style="background:'+(i%2===1?'#f8fafc':'#fff')+'"><td>'+s.vendor+'</td><td style="font-weight:500">'+s.name+'</td><td>'+s.count+'</td><td>'+s.types+'</td><td style="color:'+rc+';font-weight:500">'+risk+'</td></tr>';}).join('')+
+  '<table><thead><tr><th>廠商</th><th>姓名</th><th>進場次數</th><th>進場類型</th><th>風險等級</th></tr></thead><tbody>'+
+  noLicStats.map(s=>{const risk=s.count>=10?'高風險':s.count>=4?'中風險':'低風險';const cls=s.count>=10?'risk-h':s.count>=4?'risk-m':'risk-l';return'<tr><td>'+s.vendor+'</td><td style="font-weight:500">'+s.name+'</td><td>'+s.count+'</td><td>'+s.types+'</td><td class="'+cls+'">'+risk+'</td></tr>';}).join('')+
   '</tbody></table>'+
-
   '<div class="footer">恩主公醫院手術室門禁管理系統　·　本報告自動產製於 '+today+'</div>'+
   '</body></html>';
 
-  const w=window.open('','_blank','width=900,height=700');
-  w.document.write(html2);
-  w.document.close();
+  // 用新視窗列印轉 PDF
+  const blob=new Blob([reportHTML],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
   w.focus();
-  setTimeout(()=>{w.print();},800);
-}
-function importData(e){const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=ev=>{try{DB=JSON.parse(ev.target.result);save();renderDashboard();alert('匯入成功！');}catch{alert('檔案格式錯誤');}};fr.readAsText(file);e.target.value='';}
-
-// init
-Chart.register(ChartDataLabels);
-document.getElementById('r-date').value=new Date().toISOString().slice(0,10);
-document.getElementById('topbar-right').textContent=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
-fillVSel('r-vendor');fillVSel('p-vendor');
-if(FB_CONFIG.apiKey&&FB_CONFIG.databaseURL){
-  // 自動重連 Firebase
-  setTimeout(async()=>{
-    if(!window._fbModules){setTimeout(()=>autoFbConnect(),1500);return;}
-    await autoFbConnect();
-  },800);
-}
-async function autoFbConnect(){
-  if(!FB_CONFIG.apiKey)return;
-  document.getElementById('fb-apikey').value=FB_CONFIG.apiKey;
-  document.getElementById('fb-projectid').value=FB_CONFIG.projectId;
-  document.getElementById('fb-dburl').value=FB_CONFIG.databaseURL;
-  document.getElementById('fb-appid').value=FB_CONFIG.appId;
-  setSyncStatus('warn','重新連線中...');
-  await fbConnect();
+  // 列印完後釋放記憶體
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
 renderDashboard();
 </script>
