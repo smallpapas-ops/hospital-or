@@ -382,7 +382,23 @@ let FB_CONFIG={
 let charts={};
 
 function save(){try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}}
-function load(){try{const d=localStorage.getItem(KEY);if(d)DB=JSON.parse(d);const s=localStorage.getItem(KEY+'_fbcfg');if(s)FB_CONFIG=JSON.parse(s);}catch(e){}}
+function load(){
+  try{
+    const d=localStorage.getItem(KEY);
+    if(d){
+      const parsed=JSON.parse(d);
+      // 如果 localStorage 裡的資料是空的（vendors/records 都是空陣列），清除它
+      if(parsed&&parsed.vendors&&parsed.vendors.length===0&&parsed.records&&parsed.records.length===0){
+        localStorage.removeItem(KEY);
+        console.log('Cleared empty localStorage data');
+      } else {
+        DB=parsed;
+      }
+    }
+    const s=localStorage.getItem(KEY+'_fbcfg');
+    if(s)FB_CONFIG=JSON.parse(s);
+  }catch(e){localStorage.removeItem(KEY);}
+}
 function saveSync(){try{localStorage.setItem(KEY+'_fbcfg',JSON.stringify(FB_CONFIG));}catch(e){}}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
