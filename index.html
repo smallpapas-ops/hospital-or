@@ -323,10 +323,23 @@ input[type="file"]{display:none;}
           <div class="card-header"><span class="card-title">各月未持照進場筆數</span></div>
           <div class="chart-wrap-lg"><canvas id="ch-monthly-nolic-bar" role="img" aria-label="各月未持照長條圖"></canvas></div>
         </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">各月未持照進場類型（跟刀 vs 維修）</span></div>
+            <div class="chart-wrap"><canvas id="ch-monthly-nolic-type" role="img" aria-label="各月未持照類型堆疊圖"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">全期未持照類型佔比</span></div>
+            <div class="chart-wrap"><canvas id="ch-nolic-type-pie" role="img" aria-label="未持照類型圓餅圖"></canvas></div>
+          </div>
+        </div>
         <div class="card" id="monthly-nolic-detail-card">
           <div class="card-header">
             <span class="card-title">月份明細</span>
-            <select id="monthly-nolic-sel" onchange="renderMonthlyNolicTable()" style="background:var(--navy3);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:3px 8px;font-size:12px;font-family:var(--sans);cursor:pointer;"></select>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <select id="monthly-nolic-sel" onchange="renderMonthlyNolicTable()" style="background:var(--navy3);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:3px 8px;font-size:12px;font-family:var(--sans);cursor:pointer;"></select>
+              <div id="monthly-nolic-type-summary" style="display:flex;gap:8px;align-items:center"></div>
+            </div>
           </div>
           <div id="monthly-nolic-table"></div>
         </div>
@@ -414,7 +427,7 @@ function renderDashboard(){
   const rate=persons?Math.round(licOk/persons*100):0;
   const rc=rate>=80?'c-ok':rate>=60?'c-warn':'c-danger';
   document.getElementById('dash-metrics').innerHTML=`
-    <div class="metric"><div class="metric-label">總進場筆數</div><div class="metric-val c-accent">${total}</div><div class="metric-sub">4–5月合計</div></div>
+    <div class="metric"><div class="metric-label">總進場筆數</div><div class="metric-val c-accent">${total}</div><div class="metric-sub">${(()=>{const ms=[...new Set(DB.records.map(r=>r.date.slice(0,7)))].sort();return ms.length>=2?ms[0].slice(5)+'–'+ms[ms.length-1].slice(5)+'月合計':ms[0]?ms[0].slice(5)+'月':'';})()}</div></div>
     <div class="metric"><div class="metric-label">廠商家數</div><div class="metric-val">${DB.vendors.length}</div></div>
     <div class="metric"><div class="metric-label">人員持照率</div><div class="metric-val ${rc}">${rate}%</div><div class="metric-sub">${persons}人</div></div>
     <div class="metric"><div class="metric-label">未持照人員</div><div class="metric-val c-danger">${noLic}</div><div class="metric-sub">需追蹤</div></div>`;
@@ -718,6 +731,70 @@ function renderMonthlyNolic(){
     }
   });
 
+  // ── 各月未持照類型堆疊圖（跟刀 vs 維修）──
+  const opByM=months.map(m=>mmap[m].filter(r=>r.type!=='維修保養').length);
+  const maintByM=months.map(m=>mmap[m].filter(r=>r.type==='維修保養').length);
+  destroyChart('monthly-nolic-type');
+  charts['monthly-nolic-type']=new Chart(document.getElementById('ch-monthly-nolic-type'),{
+    type:'bar',
+    data:{
+      labels:months.map(m=>m.slice(5)+'月'),
+      datasets:[
+        {label:'跟刀手術',data:opByM,backgroundColor:'rgba(0,196,180,0.75)',stack:'s',borderRadius:3,
+          datalabels:{color:'#fff',font:{size:12,weight:'bold'},anchor:'center',align:'center',
+            formatter:(v,ctx)=>{
+              const total=ctx.chart.data.datasets.reduce((s,ds)=>s+ds.data[ctx.dataIndex],0);
+              return v>0?v+'\n'+Math.round(v/total*100)+'%':null;
+            },textAlign:'center'}},
+        {label:'維修保養',data:maintByM,backgroundColor:'rgba(245,158,11,0.75)',stack:'s',borderRadius:3,
+          datalabels:{color:'#fff',font:{size:12,weight:'bold'},anchor:'center',align:'center',
+            formatter:(v,ctx)=>{
+              const total=ctx.chart.data.datasets.reduce((s,ds)=>s+ds.data[ctx.dataIndex],0);
+              return v>0?v+'\n'+Math.round(v/total*100)+'%':null;
+            },textAlign:'center'}}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#8FA4BA',font:{size:13},boxWidth:10}},
+        datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0}
+      },
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{color:'#8FA4BA',font:{size:13}}},
+        y:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA',stepSize:5}}
+      }
+    }
+  });
+
+  // ── 全期未持照類型圓餅圖 ──
+  const totalOp=DB.records.filter(r=>r.hasLic==='否'&&r.type!=='維修保養').length;
+  const totalMaint=DB.records.filter(r=>r.hasLic==='否'&&r.type==='維修保養').length;
+  destroyChart('nolic-type-pie');
+  charts['nolic-type-pie']=new Chart(document.getElementById('ch-nolic-type-pie'),{
+    type:'doughnut',
+    data:{
+      labels:[`跟刀手術（${totalOp}）`,`維修保養（${totalMaint}）`],
+      datasets:[{
+        data:[totalOp,totalMaint],
+        backgroundColor:['rgba(0,196,180,0.8)','rgba(245,158,11,0.8)'],
+        borderWidth:2,borderColor:'#152231'
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'52%',
+      plugins:{
+        legend:{position:'bottom',labels:{color:'#8FA4BA',font:{size:13},boxWidth:10,padding:10}},
+        datalabels:{color:'#fff',font:{size:15,weight:'bold'},backgroundColor:'rgba(0,0,0,0.45)',borderRadius:3,
+          padding:{top:3,bottom:3,left:6,right:6},textAlign:'center',
+          formatter:(v,ctx)=>{
+            const total=ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+            const pct=Math.round(v/total*100);
+            const lbl=ctx.dataIndex===0?'跟刀':'維修';
+            return lbl+'\n'+pct+'%';
+          }}
+      }
+    }
+  });
+
   // 月份下拉
   const sel=document.getElementById('monthly-nolic-sel');
   sel.innerHTML=months.map(m=>`<option value="${m}">${m.slice(5)}月（${mmap[m].length}筆）</option>`).join('');
@@ -733,6 +810,32 @@ function renderMonthlyNolicTable(){
   if(!m)return;
   const recs=DB.records.filter(r=>r.date.startsWith(m)&&r.hasLic==='否')
     .sort((a,b)=>a.date.localeCompare(b.date));
+
+  // ── 類型摘要徽章（下拉旁） ──
+  const total=recs.length;
+  const op=recs.filter(r=>r.type!=='維修保養').length;
+  const maint=recs.filter(r=>r.type==='維修保養').length;
+  const opPct=total?Math.round(op/total*100):0;
+  const maintPct=total?Math.round(maint/total*100):0;
+  const sumEl=document.getElementById('monthly-nolic-type-summary');
+  if(sumEl){
+    sumEl.innerHTML=total===0?'<span style="font-size:12px;color:var(--text3)">本月無未持照記錄</span>':`
+      <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,196,180,0.12);border:1px solid rgba(0,196,180,0.3);border-radius:20px;padding:3px 11px;font-size:12px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#00C4B4;flex-shrink:0"></span>
+        跟刀 <b style="color:var(--accent);font-family:var(--mono)">${op}筆</b>
+        <span style="color:var(--text3)">${opPct}%</span>
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:20px;padding:3px 11px;font-size:12px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;flex-shrink:0"></span>
+        維修 <b style="color:#FCD34D;font-family:var(--mono)">${maint}筆</b>
+        <span style="color:var(--text3)">${maintPct}%</span>
+      </span>
+      <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);font-size:12px;color:var(--danger);font-family:var(--mono);font-weight:600">合計 ${total}筆</span>
+      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;width:100px;background:rgba(255,255,255,0.06)">
+        <div style="width:${opPct}%;background:#00C4B4;transition:width .3s"></div>
+        <div style="width:${maintPct}%;background:#F59E0B;transition:width .3s"></div>
+      </div>`;
+  }
 
   const th='padding:8px 11px;text-align:left;color:var(--text3);font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--navy3);white-space:nowrap;';
   const td='padding:7px 11px;border-bottom:1px solid var(--border);font-size:13px;';
