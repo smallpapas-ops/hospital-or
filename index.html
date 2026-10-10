@@ -267,6 +267,7 @@ input[type="file"]{display:none;}
         <div class="filter-tab" onclick="switchAnalysis('nolic-detail',this)">未持照人員分析</div>
         <div class="filter-tab" onclick="switchAnalysis('dept-dist',this)">科別分布</div>
         <div class="filter-tab" onclick="switchAnalysis('purpose-dist',this)">進場目的分析</div>
+        <div class="filter-tab" onclick="switchAnalysis('monthly-nolic',this)">各月未持照明細</div>
       </div>
       <div id="analysis-vendor-lic">
         <div class="metrics" id="an-vendor-metrics"></div>
@@ -313,6 +314,22 @@ input[type="file"]{display:none;}
           <div class="card"><div class="card-header"><span class="card-title">科別持照率</span></div><div id="dept-lic-bars"></div></div>
         </div>
         <div class="card"><div class="card-header"><span class="card-title">廠商 × 科別進場矩陣</span></div><div class="tbl-wrap" id="dept-vendor-wrap"></div></div>
+      </div>
+
+      <!-- 各月未持照明細 -->
+      <div id="analysis-monthly-nolic" style="display:none">
+        <div class="metrics" id="an-monthly-nolic-metrics"></div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">各月未持照進場筆數</span></div>
+          <div class="chart-wrap-lg"><canvas id="ch-monthly-nolic-bar" role="img" aria-label="各月未持照長條圖"></canvas></div>
+        </div>
+        <div class="card" id="monthly-nolic-detail-card">
+          <div class="card-header">
+            <span class="card-title">月份明細</span>
+            <select id="monthly-nolic-sel" onchange="renderMonthlyNolicTable()" style="background:var(--navy3);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:3px 8px;font-size:12px;font-family:var(--sans);cursor:pointer;"></select>
+          </div>
+          <div id="monthly-nolic-table"></div>
+        </div>
       </div>
 
       <!-- 進場目的分析 -->
@@ -639,7 +656,7 @@ function renderLicense(){
 // ── 分析報表 ──
 let currentAnalysis='vendor-lic';
 function switchAnalysis(id,el){
-  ['vendor-lic','monthly-lic','nolic-detail','dept-dist','purpose-dist'].forEach(s=>{document.getElementById('analysis-'+s).style.display='none';});
+  ['vendor-lic','monthly-lic','nolic-detail','dept-dist','purpose-dist','monthly-nolic'].forEach(s=>{document.getElementById('analysis-'+s).style.display='none';});
   document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('analysis-'+id).style.display='block';
   el.classList.add('active');
@@ -652,6 +669,108 @@ function renderAnalysis(id){
   else if(id==='nolic-detail')renderNolicDetail();
   else if(id==='dept-dist')renderDeptDist();
   else if(id==='purpose-dist')renderPurposeDist();
+  else if(id==='monthly-nolic')renderMonthlyNolic();
+}
+
+function renderMonthlyNolic(){
+  // 建立月份 → 未持照記錄 map
+  const mmap={};
+  DB.records.filter(r=>r.hasLic==='否').forEach(r=>{
+    const m=r.date.slice(0,7);
+    if(!mmap[m])mmap[m]=[];
+    mmap[m].push(r);
+  });
+  const months=Object.keys(mmap).sort();
+  const totalNoLic=DB.records.filter(r=>r.hasLic==='否').length;
+  const peakM=months.reduce((a,b)=>mmap[a].length>=mmap[b].length?a:b,months[0]||'');
+  const peakV=peakM?mmap[peakM].length:0;
+  const avgV=months.length?Math.round(totalNoLic/months.length):0;
+  document.getElementById('an-monthly-nolic-metrics').innerHTML=
+    `<div class="metric"><div class="metric-label">總未持照筆數</div><div class="metric-val c-danger">${totalNoLic}</div></div>`+
+    `<div class="metric"><div class="metric-label">月平均未持照</div><div class="metric-val c-warn">${avgV}</div><div class="metric-sub">筆/月</div></div>`+
+    `<div class="metric"><div class="metric-label">最高月份</div><div class="metric-val c-warn">${peakM?peakM.slice(5)+'月':'—'}</div><div class="metric-sub">${peakV}筆</div></div>`+
+    `<div class="metric"><div class="metric-label">統計月數</div><div class="metric-val">${months.length}</div></div>`;
+
+  // 長條圖
+  destroyChart('monthly-nolic-bar');
+  const totalByM=months.map(m=>DB.records.filter(r=>r.date.startsWith(m)).length);
+  const noLicByM=months.map(m=>mmap[m].length);
+  const rateByM=months.map((m,i)=>totalByM[i]?Math.round(mmap[m].length/totalByM[i]*100):0);
+  charts['monthly-nolic-bar']=new Chart(document.getElementById('ch-monthly-nolic-bar'),{
+    type:'bar',
+    data:{
+      labels:months.map(m=>m.slice(5)+'月'),
+      datasets:[
+        {label:'未持照',data:noLicByM,backgroundColor:'rgba(239,68,68,0.75)',borderRadius:4,order:2},
+        {label:'未持照率%',data:rateByM,type:'line',borderColor:'#F59E0B',backgroundColor:'rgba(245,158,11,0.15)',pointBackgroundColor:'#F59E0B',pointRadius:5,borderWidth:2,yAxisID:'y2',order:1,
+          datalabels:{color:'#FCD34D',font:{size:12,weight:'bold'},anchor:'end',align:'top',offset:4,formatter:v=>v+'%',backgroundColor:'rgba(0,0,0,0.45)',borderRadius:3,padding:{top:1,bottom:1,left:3,right:3}}}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8FA4BA',font:{size:13},boxWidth:10}},
+        datalabels:{display:(ctx)=>ctx.datasetIndex===0,color:'#fff',font:{size:12,weight:'bold'},anchor:'end',align:'top',offset:2,formatter:v=>v?v:null}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#8FA4BA',font:{size:13}}},
+        y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8FA4BA',stepSize:5},title:{display:true,text:'筆數',color:'#5B7A96',font:{size:12}}},
+        y2:{position:'right',grid:{display:false},ticks:{color:'#F59E0B',font:{size:12},callback:v=>v+'%'},title:{display:true,text:'未持照率',color:'#F59E0B',font:{size:12}}}
+      }
+    }
+  });
+
+  // 月份下拉
+  const sel=document.getElementById('monthly-nolic-sel');
+  sel.innerHTML=months.map(m=>`<option value="${m}">${m.slice(5)}月（${mmap[m].length}筆）</option>`).join('');
+  // 預設選最後一個月
+  sel.value=months[months.length-1]||'';
+  renderMonthlyNolicTable();
+}
+
+function renderMonthlyNolicTable(){
+  const sel=document.getElementById('monthly-nolic-sel');
+  if(!sel)return;
+  const m=sel.value;
+  if(!m)return;
+  const recs=DB.records.filter(r=>r.date.startsWith(m)&&r.hasLic==='否')
+    .sort((a,b)=>a.date.localeCompare(b.date));
+
+  // 科別統計
+  const dmap={};recs.forEach(r=>{const d=r.dept||'未填';dmap[d]=(dmap[d]||0)+1;});
+  const deptStats=Object.entries(dmap).sort((a,b)=>b[1]-a[1]);
+  const deptBadge=deptStats.map(([d,c])=>`<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);border-radius:20px;padding:2px 9px;font-size:11px;margin:2px">${d}<b style="color:var(--danger)">${c}</b></span>`).join('');
+
+  const th='padding:8px 11px;text-align:left;color:var(--text3);font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--navy3);white-space:nowrap;';
+  const td='padding:7px 11px;border-bottom:1px solid var(--border);font-size:13px;';
+
+  const rows=recs.map((r,i)=>{
+    const p=DB.persons.find(x=>x.id===r.personId)||{name:pName(r.personId),vendorId:r.vendorId};
+    const bg=i%2===1?'rgba(255,255,255,0.02)':'';
+    const typeBadge=r.type==='維修保養'?'<span style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:1px 6px;font-size:11px;color:#FCD34D">維修</span>':'<span style="background:rgba(0,196,180,0.12);border:1px solid rgba(0,196,180,0.25);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--accent)">跟刀</span>';
+    return`<tr style="background:${bg}">
+      <td style="${td}font-family:var(--mono);color:var(--text2)">${r.date}</td>
+      <td style="${td}font-weight:500">${p.name||pName(r.personId)}</td>
+      <td style="${td}color:var(--text2)">${vName(p.vendorId||r.vendorId)}</td>
+      <td style="${td}">${typeBadge}</td>
+      <td style="${td}color:var(--text2)">${r.dept||'—'}</td>
+      <td style="${td}color:var(--text3);font-size:12px">${r.doctor||'—'}</td>
+      <td style="${td}color:var(--text3);font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.note||''}">${r.note||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('monthly-nolic-table').innerHTML=
+    `<div style="display:flex;flex-wrap:wrap;gap:4px;padding:10px 12px 8px;border-bottom:1px solid var(--border)">${deptBadge}</div>`+
+    `<div class="tbl-wrap"><table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="${th}width:95px">日期</th>
+        <th style="${th}">姓名</th>
+        <th style="${th}">廠商</th>
+        <th style="${th}width:70px">類型</th>
+        <th style="${th}">科別</th>
+        <th style="${th}">主刀醫師</th>
+        <th style="${th}">備註</th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td colspan="7" class="empty-state">本月無未持照記錄</td></tr>'}</tbody>
+    </table></div>`;
 }
 
 function renderVendorLic(){
