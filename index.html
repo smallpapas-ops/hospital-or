@@ -734,15 +734,101 @@ function renderMonthlyNolicTable(){
   const recs=DB.records.filter(r=>r.date.startsWith(m)&&r.hasLic==='否')
     .sort((a,b)=>a.date.localeCompare(b.date));
 
-  // 科別統計
+  const th='padding:8px 11px;text-align:left;color:var(--text3);font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--navy3);white-space:nowrap;';
+  const td='padding:7px 11px;border-bottom:1px solid var(--border);font-size:13px;';
+
+  // ── 高頻未持照人員分析卡 ──
+  // 統計本月每人未持照進場次數
+  const personMap={};
+  recs.forEach(r=>{
+    const pid=r.personId;
+    if(!personMap[pid])personMap[pid]={pid,recs:[],types:new Set(),depts:new Set(),hasLicDates:[]};
+    personMap[pid].recs.push(r);
+    personMap[pid].types.add(r.type||'跟刀手術');
+    if(r.dept)personMap[pid].depts.add(r.dept);
+  });
+  // 同月此人持照進場日期（作為對比）
+  const allMonthRecs=DB.records.filter(r=>r.date.startsWith(m));
+  Object.values(personMap).forEach(ps=>{
+    ps.hasLicDates=allMonthRecs.filter(r=>r.personId===ps.pid&&r.hasLic==='是').map(r=>r.date.slice(5));
+  });
+  const personList=Object.values(personMap).sort((a,b)=>b.recs.length-a.recs.length);
+
+  let highFreqHtml='';
+  if(personList.length>0){
+    const rows2=personList.map((ps,i)=>{
+      const p=DB.persons.find(x=>x.id===ps.pid)||{name:pName(ps.pid),vendorId:(ps.recs[0]||{}).vendorId||''};
+      const vendorId=p.vendorId||(ps.recs[0]||{}).vendorId||'';
+      const cnt=ps.recs.length;
+      const risk=cnt>=5?'high':cnt>=3?'mid':'low';
+      const riskColor=risk==='high'?'var(--danger)':risk==='mid'?'var(--warn)':'var(--ok)';
+      const riskLabel=risk==='high'?'高頻':risk==='mid'?'注意':'一般';
+
+      // 日期列表
+      const noLicDates=ps.recs.map(r=>r.date.slice(5)).join('、');
+      // 類型說明
+      const types=[...ps.types];
+      let typeDesc='';
+      if(types.length===1){
+        typeDesc=`${types[0]}（全部${cnt}次）`;
+      }else{
+        const maintRecs=ps.recs.filter(r=>r.type==='維修保養');
+        const opRecs=ps.recs.filter(r=>r.type!=='維修保養');
+        const parts=[];
+        if(maintRecs.length)parts.push(`維修保養${maintRecs.length}次（${maintRecs.map(r=>r.date.slice(5)).join('、')}）`);
+        if(opRecs.length)parts.push(`跟刀手術${opRecs.length}次`);
+        typeDesc=parts.join(' + ');
+      }
+      // 科別
+      const depts=[...ps.depts];
+      const deptStr=depts.length===1?depts[0]:depts.join('/')+'（混合）';
+      // 持照進場對比
+      const licNote=ps.hasLicDates.length?`本月另有 ${ps.hasLicDates.length} 次持照進場（${ps.hasLicDates.join('、')}）`:'';
+
+      const bg=i%2===1?'rgba(255,255,255,0.02)':'';
+      return`<tr style="background:${bg}">
+        <td style="${td}">
+          <span style="display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600;background:${risk==='high'?'rgba(239,68,68,0.15)':risk==='mid'?'rgba(245,158,11,0.15)':'rgba(16,185,129,0.1)'};color:${riskColor};border:1px solid ${riskColor};margin-right:4px">${riskLabel}</span>
+        </td>
+        <td style="${td}font-weight:600;color:var(--text)">${p.name||pName(ps.pid)}</td>
+        <td style="${td}color:var(--text2)">${vName(vendorId)}</td>
+        <td style="${td}font-family:var(--mono);font-size:22px;font-weight:700;color:${riskColor};text-align:center">${cnt}</td>
+        <td style="${td}color:var(--text2)">${typeDesc}</td>
+        <td style="${td}color:var(--text2)">${deptStr}</td>
+        <td style="${td}color:var(--text3);font-size:11px;font-family:var(--mono)">${noLicDates}</td>
+        <td style="${td}color:var(--text3);font-size:11px">${licNote}</td>
+      </tr>`;
+    }).join('');
+
+    highFreqHtml=`<div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);padding:10px 12px 8px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        高頻未持照人員分析（${m.slice(5)}月）
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);font-weight:400">共 ${personList.length} 人次</span>
+      </div>
+      <div class="tbl-wrap"><table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="${th}width:55px">風險</th>
+          <th style="${th}">姓名</th>
+          <th style="${th}">廠商</th>
+          <th style="${th}width:50px;text-align:center">次數</th>
+          <th style="${th}">進場類型</th>
+          <th style="${th}">科別</th>
+          <th style="${th}">未持照日期</th>
+          <th style="${th}">備注</th>
+        </tr></thead>
+        <tbody>${rows2}</tbody>
+      </table></div>
+    </div>`;
+  }
+
+  // ── 科別標籤 ──
   const dmap={};recs.forEach(r=>{const d=r.dept||'未填';dmap[d]=(dmap[d]||0)+1;});
   const deptStats=Object.entries(dmap).sort((a,b)=>b[1]-a[1]);
   const deptBadge=deptStats.map(([d,c])=>`<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);border-radius:20px;padding:2px 9px;font-size:11px;margin:2px">${d}<b style="color:var(--danger)">${c}</b></span>`).join('');
 
-  const th='padding:8px 11px;text-align:left;color:var(--text3);font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--navy3);white-space:nowrap;';
-  const td='padding:7px 11px;border-bottom:1px solid var(--border);font-size:13px;';
-
-  const rows=recs.map((r,i)=>{
+  // ── 逐筆明細 ──
+  const detailRows=recs.map((r,i)=>{
     const p=DB.persons.find(x=>x.id===r.personId)||{name:pName(r.personId),vendorId:r.vendorId};
     const bg=i%2===1?'rgba(255,255,255,0.02)':'';
     const typeBadge=r.type==='維修保養'?'<span style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:1px 6px;font-size:11px;color:#FCD34D">維修</span>':'<span style="background:rgba(0,196,180,0.12);border:1px solid rgba(0,196,180,0.25);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--accent)">跟刀</span>';
@@ -758,7 +844,12 @@ function renderMonthlyNolicTable(){
   }).join('');
 
   document.getElementById('monthly-nolic-table').innerHTML=
-    `<div style="display:flex;flex-wrap:wrap;gap:4px;padding:10px 12px 8px;border-bottom:1px solid var(--border)">${deptBadge}</div>`+
+    highFreqHtml+
+    `<div style="font-size:12px;font-weight:600;color:var(--text2);padding:10px 12px 6px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+      逐筆明細（${m.slice(5)}月，${recs.length}筆）
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-left:8px">${deptBadge}</div>
+    </div>`+
     `<div class="tbl-wrap"><table style="width:100%;border-collapse:collapse">
       <thead><tr>
         <th style="${th}width:95px">日期</th>
@@ -769,7 +860,7 @@ function renderMonthlyNolicTable(){
         <th style="${th}">主刀醫師</th>
         <th style="${th}">備註</th>
       </tr></thead>
-      <tbody>${rows||'<tr><td colspan="7" class="empty-state">本月無未持照記錄</td></tr>'}</tbody>
+      <tbody>${detailRows||'<tr><td colspan="7" class="empty-state">本月無未持照記錄</td></tr>'}</tbody>
     </table></div>`;
 }
 
